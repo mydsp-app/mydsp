@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% block title %}Staff Costs — MY DSP{% endblock %}
+{% block page_title %}Staff Costs{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h4><i class="bi bi-person-badge-fill me-2"></i>Staff Costs — Wages & Payroll</h4>
+  <a href="{{ url_for('staff_cost_new') }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Add Entry</a>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-4"><div class="kpi-card green"><div class="kpi-label">NDIS Revenue</div><div class="kpi-value">${{ '{:,.0f}'.format(total_revenue) }}</div></div></div>
+  <div class="col-md-4"><div class="kpi-card red"><div class="kpi-label">Total Staff Cost</div><div class="kpi-value">${{ '{:,.0f}'.format(total_cost) }}</div></div></div>
+  <div class="col-md-4"><div class="kpi-card {% if total_margin >= 0 %}green{% else %}red{% endif %}"><div class="kpi-label">Total Margin</div><div class="kpi-value {% if total_margin < 0 %}text-danger{% endif %}">${{ '{:,.0f}'.format(total_margin) }}</div></div></div>
+</div>
+
+<div class="table-card mb-3 p-3">
+  <form method="GET" class="row g-2 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold">Month</label>
+      <select name="month" class="form-select form-select-sm">
+        <option value="">All Months</option>
+        {% for m in months %}<option value="{{ m.month_period }}" {{ 'selected' if filter_month == m.month_period }}>{{ m.month_period }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold">Staff Name</label>
+      <input type="text" name="staff" class="form-control form-control-sm" value="{{ filter_staff }}" placeholder="Search staff...">
+    </div>
+    <div class="col-md-4 d-flex gap-2 align-items-end">
+      <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Filter</button>
+      <a href="{{ url_for('staff_costs') }}" class="btn btn-sm btn-outline-secondary">Clear</a>
+    </div>
+  </form>
+</div>
+
+<div class="table-card">
+  <div class="card-header">
+    <span><i class="bi bi-people me-2"></i>Staff Cost Entries ({{ entries|length }})</span>
+    <a href="{{ url_for('export_excel', month=filter_month) }}" class="btn btn-sm btn-light"><i class="bi bi-file-earmark-excel me-1"></i>Export</a>
+  </div>
+  <div class="table-responsive">
+    <table class="table datatable" style="font-size:0.82rem;">
+      <thead>
+        <tr><th>Pay Date</th><th>Month</th><th>Staff</th><th>Role</th><th>Participant</th><th>Shift Type</th><th>Hrs</th><th>NDIS Rate</th><th>NDIS Rev</th><th>Act. Rate</th><th>Wage</th><th>Super</th><th>Total Cost</th><th>Margin</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for e in entries %}
+        <tr>
+          <td>{{ e.pay_date }}</td>
+          <td>{{ e.month_period or '-' }}</td>
+          <td class="fw-semibold">{{ e.staff_name }}</td>
+          <td>{{ e.role or '-' }}</td>
+          <td>{{ e.participant_name or '-' }}</td>
+          <td><span class="badge bg-info text-dark">{{ e.shift_type or '-' }}</span></td>
+          <td>{{ e.qty_hours }}</td>
+          <td>${{ '{:.2f}'.format(e.ndis_rate or 0) }}</td>
+          <td class="amount-positive">${{ '{:,.2f}'.format(e.ndis_revenue or 0) }}</td>
+          <td>${{ '{:.2f}'.format(e.actual_rate or 0) }}</td>
+          <td>${{ '{:,.2f}'.format(e.actual_wage or 0) }}</td>
+          <td>${{ '{:,.2f}'.format(e.super_amount or 0) }}</td>
+          <td class="amount-negative fw-semibold">${{ '{:,.2f}'.format(e.total_cost or 0) }}</td>
+          <td class="{% if (e.margin or 0) >= 0 %}amount-positive{% else %}amount-negative{% endif %} fw-semibold">${{ '{:,.2f}'.format(e.margin or 0) }}</td>
+          <td>
+            <a href="{{ url_for('staff_cost_edit', eid=e.id) }}" class="btn btn-xs btn-outline-primary me-1"><i class="bi bi-pencil"></i></a>
+            <form method="POST" action="{{ url_for('staff_cost_delete', eid=e.id) }}" class="d-inline delete-form">
+              <button class="btn btn-xs btn-outline-danger"><i class="bi bi-trash"></i></button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="15" class="text-center py-4 text-muted">No staff cost entries yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="mt-3 p-3 bg-white rounded shadow-sm">
+  <small class="text-muted"><strong>NDIS 2025-26 Rates:</strong>
+    Weekday Day $70.23 | Evening $77.38 | Saturday $98.83 | Sunday $127.43 | Public Holiday $156.03 | SIL Night $243.56
+  </small>
+</div>
+{% endblock %}

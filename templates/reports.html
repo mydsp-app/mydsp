@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% block title %}Reports — MY DSP{% endblock %}
+{% block page_title %}Reports{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h4><i class="bi bi-file-earmark-bar-graph-fill me-2"></i>Reports &amp; Export</h4>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('export_excel', month=filter_month) }}" class="btn btn-success">
+      <i class="bi bi-file-earmark-excel me-1"></i>Export Excel
+    </a>
+    <a href="{{ url_for('export_pdf', month=filter_month) }}" class="btn btn-danger">
+      <i class="bi bi-file-earmark-pdf me-1"></i>Export PDF
+    </a>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="table-card mb-3 p-3">
+  <form method="GET" class="row g-2 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold">Filter by Month</label>
+      <select name="month" class="form-select form-select-sm">
+        <option value="">All Periods</option>
+        {% for m in months %}<option value="{{ m.month_period }}" {{ 'selected' if filter_month == m.month_period }}>{{ m.month_period }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4 d-flex gap-2 align-items-end">
+      <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Apply Filter</button>
+      <a href="{{ url_for('reports') }}" class="btn btn-sm btn-outline-secondary">Clear</a>
+    </div>
+  </form>
+</div>
+
+<!-- P&L Summary -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3"><div class="kpi-card green"><div class="kpi-label">Total Income</div><div class="kpi-value">${{ '{:,.2f}'.format(total_income) }}</div></div></div>
+  <div class="col-md-3"><div class="kpi-card red"><div class="kpi-label">Expenditure</div><div class="kpi-value">${{ '{:,.2f}'.format(total_exp) }}</div></div></div>
+  <div class="col-md-3"><div class="kpi-card orange"><div class="kpi-label">Staff Costs</div><div class="kpi-value">${{ '{:,.2f}'.format(total_staff) }}</div></div></div>
+  <div class="col-md-3"><div class="kpi-card {% if net >= 0 %}green{% else %}red{% endif %}">
+    <div class="kpi-label">Net Profit / (Loss)</div>
+    <div class="kpi-value {% if net < 0 %}text-danger{% endif %}">${{ '{:,.2f}'.format(net) }}</div>
+  </div></div>
+</div>
+
+<div class="row g-3">
+  <!-- Income by Participant -->
+  <div class="col-lg-6">
+    <div class="table-card">
+      <div class="card-header"><span><i class="bi bi-people me-2"></i>Income by Participant</span></div>
+      <table class="table table-sm mb-0">
+        <thead><tr><th>Participant</th><th class="text-end">Total Income ($)</th><th class="text-end">% of Total</th></tr></thead>
+        <tbody>
+          {% for r in income_by_participant %}
+          <tr>
+            <td class="fw-semibold small">{{ r.participant_name or '-' }}</td>
+            <td class="text-end amount-positive">${{ '{:,.2f}'.format(r.total) }}</td>
+            <td class="text-end small text-muted">{{ '{:.1f}'.format(r.total / total_income * 100) if total_income else '0.0' }}%</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" class="text-center py-3 text-muted">No data</td></tr>
+          {% endfor %}
+        </tbody>
+        {% if income_by_participant %}
+        <tfoot><tr class="fw-bold"><td>TOTAL</td><td class="text-end">${{ '{:,.2f}'.format(total_income) }}</td><td class="text-end">100%</td></tr></tfoot>
+        {% endif %}
+      </table>
+    </div>
+  </div>
+
+  <!-- Expenditure by Category -->
+  <div class="col-lg-6">
+    <div class="table-card">
+      <div class="card-header"><span><i class="bi bi-bar-chart me-2"></i>Expenditure by Category</span></div>
+      <table class="table table-sm mb-0">
+        <thead><tr><th>Category</th><th class="text-end">Total ($)</th></tr></thead>
+        <tbody>
+          {% for r in exp_by_category %}
+          <tr>
+            <td class="small">{{ r.category or 'Uncategorised' }}</td>
+            <td class="text-end amount-negative">${{ '{:,.2f}'.format(r.total) }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="2" class="text-center py-3 text-muted">No data</td></tr>
+          {% endfor %}
+        </tbody>
+        {% if exp_by_category %}
+        <tfoot><tr class="fw-bold"><td>TOTAL</td><td class="text-end">${{ '{:,.2f}'.format(total_exp) }}</td></tr></tfoot>
+        {% endif %}
+      </table>
+    </div>
+  </div>
+
+  <!-- Staff Summary -->
+  <div class="col-12">
+    <div class="table-card">
+      <div class="card-header"><span><i class="bi bi-person-badge me-2"></i>Staff Cost Summary</span></div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Staff Name</th><th class="text-end">Total Hours</th><th class="text-end">NDIS Revenue ($)</th><th class="text-end">Total Cost ($)</th><th class="text-end">Margin ($)</th></tr></thead>
+          <tbody>
+            {% for r in staff_summary %}
+            <tr>
+              <td class="fw-semibold small">{{ r.staff_name }}</td>
+              <td class="text-end small">{{ '{:.1f}'.format(r.hrs or 0) }}</td>
+              <td class="text-end amount-positive">${{ '{:,.2f}'.format(r.rev or 0) }}</td>
+              <td class="text-end amount-negative">${{ '{:,.2f}'.format(r.cost or 0) }}</td>
+              <td class="text-end {% if (r.margin or 0) >= 0 %}amount-positive{% else %}amount-negative{% endif %} fw-semibold">${{ '{:,.2f}'.format(r.margin or 0) }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-center py-3 text-muted">No data</td></tr>
+            {% endfor %}
+          </tbody>
+          {% if staff_summary %}
+          <tfoot><tr class="fw-bold">
+            <td>TOTAL</td>
+            <td class="text-end">{{ '{:.1f}'.format(staff_summary | sum(attribute='hrs') | float) }}</td>
+            <td class="text-end">${{ '{:,.2f}'.format(staff_summary | sum(attribute='rev') | float) }}</td>
+            <td class="text-end">${{ '{:,.2f}'.format(total_staff) }}</td>
+            <td class="text-end {% if (staff_summary | sum(attribute='margin') | float) >= 0 %}amount-positive{% else %}amount-negative{% endif %}">${{ '{:,.2f}'.format(staff_summary | sum(attribute='margin') | float) }}</td>
+          </tr></tfoot>
+          {% endif %}
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

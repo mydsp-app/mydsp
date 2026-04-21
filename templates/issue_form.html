@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Edit' if issue else 'Log' }} Issue — MY DSP{% endblock %}
+{% block page_title %}{{ 'Edit' if issue else 'Log New' }} Issue{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h4><i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>{{ 'Edit Issue' if issue else 'Log New Issue' }}</h4>
+  <a href="{{ url_for('issues') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back</a>
+</div>
+<form method="POST" class="form-card">
+  <div class="row g-3">
+    <div class="col-md-4">
+      <label class="form-label">Date *</label>
+      <input type="date" name="issue_date" class="form-control" required value="{{ issue.issue_date[:10] if issue and issue.issue_date else '' }}">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Participant</label>
+      <select name="participant_id" id="participant_id" class="form-select">
+        <option value="">-- Select --</option>
+        {% for p in participants_list %}
+        <option value="{{ p.id }}" {{ 'selected' if issue and issue.participant_id == p.id }}>{{ p.full_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Participant / Area</label>
+      <input type="text" name="participant_name" id="participant_name" class="form-control" value="{{ issue.participant_name if issue else '' }}" placeholder="e.g. All, Finance, Ian Ogillian">
+    </div>
+    <div class="col-12">
+      <label class="form-label">Issue Description *</label>
+      <textarea name="description" class="form-control" rows="3" required>{{ issue.description if issue else '' }}</textarea>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Risk Level</label>
+      <select name="risk_level" class="form-select">
+        {% for r in ['Critical','High','Medium','Low'] %}
+        <option {{ 'selected' if issue and issue.risk_level == r }}>{{ r }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Status</label>
+      <select name="status" class="form-select">
+        {% for s in ['Open','In Progress','Monitoring','Resolved','Closed'] %}
+        <option {{ 'selected' if issue and issue.status == s else ('selected' if not issue and s == 'Open' else '') }}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Assigned To</label>
+      <input type="text" name="assigned_to" class="form-control" value="{{ issue.assigned_to if issue else '' }}" placeholder="e.g. Antonette">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Due Date</label>
+      <input type="date" name="due_date" class="form-control" value="{{ issue.due_date[:10] if issue and issue.due_date else '' }}">
+    </div>
+    <div class="col-12">
+      <label class="form-label">Action Required</label>
+      <textarea name="action_required" class="form-control" rows="2">{{ issue.action_required if issue else '' }}</textarea>
+    </div>
+    <div class="col-12">
+      <label class="form-label">Resolution (once resolved)</label>
+      <textarea name="resolution" class="form-control" rows="2">{{ issue.resolution if issue else '' }}</textarea>
+    </div>
+  </div>
+  <div class="mt-4 d-flex gap-2">
+    <button type="submit" class="btn btn-primary px-4"><i class="bi bi-save me-1"></i>{{ 'Update' if issue else 'Log' }} Issue</button>
+    <a href="{{ url_for('issues') }}" class="btn btn-outline-secondary">Cancel</a>
+  </div>
+</form>
+{% endblock %}

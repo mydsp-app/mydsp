@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Edit' if participant else 'New' }} Participant — MY DSP{% endblock %}
+{% block page_title %}{{ 'Edit' if participant else 'New' }} Participant{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h4><i class="bi bi-person-plus-fill me-2"></i>{{ 'Edit Participant' if participant else 'Add New Participant' }}</h4>
+  <a href="{{ url_for('participants') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back</a>
+</div>
+
+<form method="POST" class="form-card">
+  <div class="section-title">Personal Information</div>
+  <div class="row g-3">
+    <div class="col-md-6">
+      <label class="form-label">Full Name *</label>
+      <input type="text" name="full_name" class="form-control" required
+             value="{{ participant.full_name if participant else '' }}">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">NDIS Number</label>
+      <input type="text" name="ndis_number" class="form-control"
+             value="{{ participant.ndis_number if participant else '' }}" placeholder="e.g. 430 914 764">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Date of Birth</label>
+      <input type="date" name="date_of_birth" class="form-control"
+             value="{{ participant.date_of_birth[:10] if participant and participant.date_of_birth else '' }}">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Primary Diagnosis</label>
+      <input type="text" name="primary_diagnosis" class="form-control"
+             value="{{ participant.primary_diagnosis if participant else '' }}">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Language</label>
+      <input type="text" name="language" class="form-control"
+             value="{{ participant.language if participant else 'English' }}">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Interpreter Required?</label>
+      <select name="interpreter_required" class="form-select">
+        <option value="No" {{ 'selected' if participant and participant.interpreter_required == 'No' }}>No</option>
+        <option value="Yes" {{ 'selected' if participant and participant.interpreter_required == 'Yes' }}>Yes</option>
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Emergency Contact</label>
+      <input type="text" name="emergency_contact" class="form-control"
+             value="{{ participant.emergency_contact if participant else '' }}">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Emergency Phone</label>
+      <input type="text" name="emergency_phone" class="form-control"
+             value="{{ participant.emergency_phone if participant else '' }}">
+    </div>
+  </div>
+
+  <div class="section-title">NDIS Plan Details</div>
+  <div class="row g-3">
+    <div class="col-md-4">
+      <label class="form-label">Plan Start</label>
+      <input type="date" name="plan_start" class="form-control"
+             value="{{ participant.plan_start[:10] if participant and participant.plan_start else '' }}">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Plan End</label>
+      <input type="date" name="plan_end" class="form-control"
+             value="{{ participant.plan_end[:10] if participant and participant.plan_end else '' }}">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Plan Manager</label>
+      <select name="plan_manager" class="form-select">
+        <option value="NDIA" {{ 'selected' if participant and participant.plan_manager == 'NDIA' }}>NDIA Managed</option>
+        <option value="Plan Manager" {{ 'selected' if participant and participant.plan_manager == 'Plan Manager' }}>Plan Manager</option>
+        <option value="Self Managed" {{ 'selected' if participant and participant.plan_manager == 'Self Managed' }}>Self Managed</option>
+      </select>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Support Type</label>
+      <input type="text" name="support_type" class="form-control"
+             value="{{ participant.support_type if participant else '' }}" placeholder="e.g. Core + CB + SC">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Plan Status</label>
+      <select name="plan_status" class="form-select">
+        <option value="Approved" {{ 'selected' if participant and participant.plan_status == 'Approved' }}>Approved</option>
+        <option value="Review Requested" {{ 'selected' if participant and participant.plan_status == 'Review Requested' }}>Review Requested</option>
+        <option value="In Review" {{ 'selected' if participant and participant.plan_status == 'In Review' }}>In Review</option>
+        <option value="Pending" {{ 'selected' if participant and participant.plan_status == 'Pending' }}>Pending</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Status</label>
+      <select name="status" class="form-select">
+        <option value="Active" {{ 'selected' if not participant or participant.status == 'Active' }}>Active</option>
+        <option value="Inactive" {{ 'selected' if participant and participant.status == 'Inactive' }}>Inactive</option>
+        <option value="On Hold" {{ 'selected' if participant and participant.status == 'On Hold' }}>On Hold</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="section-title">Funding ($)</div>
+  <div class="row g-3">
+    <div class="col-md-3">
+      <label class="form-label">Total Funding *</label>
+      <div class="input-group"><span class="input-group-text">$</span>
+      <input type="number" name="total_funding" class="form-control" step="0.01" required
+             value="{{ participant.total_funding if participant else '' }}"></div>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Core Funding</label>
+      <div class="input-group"><span class="input-group-text">$</span>
+      <input type="number" name="core_funding" class="form-control" step="0.01"
+             value="{{ participant.core_funding if participant else '' }}"></div>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Capacity Building</label>
+      <div class="input-group"><span class="input-group-text">$</span>
+      <input type="number" name="cb_funding" class="form-control" step="0.01"
+             value="{{ participant.cb_funding if participant else '' }}"></div>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Support Coordination</label>
+      <div class="input-group"><span class="input-group-text">$</span>
+      <input type="number" name="sc_funding" class="form-control" step="0.01"
+             value="{{ participant.sc_funding if participant else '' }}"></div>
+    </div>
+  </div>
+
+  <div class="section-title">Support & Risk</div>
+  <div class="row g-3">
+    <div class="col-md-6">
+      <label class="form-label">Support Coordinator</label>
+      <input type="text" name="support_coordinator" class="form-control"
+             value="{{ participant.support_coordinator if participant else '' }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Next Review Date</label>
+      <input type="date" name="next_review_date" class="form-control"
+             value="{{ participant.next_review_date[:10] if participant and participant.next_review_date else '' }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">ISCP Funding</label>
+      <div class="input-group"><span class="input-group-text">$</span>
+      <input type="number" name="iscp_funding" class="form-control" step="0.01"
+             value="{{ participant.iscp_funding if participant else 0 }}"></div>
+    </div>
+    <div class="col-12">
+      <label class="form-label">SW Schedule</label>
+      <input type="text" name="sw_schedule" class="form-control"
+             value="{{ participant.sw_schedule if participant else '' }}"
+             placeholder="e.g. SW1: Mon–Wed 7:30am–3:30pm">
+    </div>
+    <div class="col-12">
+      <label class="form-label">Goals Summary</label>
+      <textarea name="goals_summary" class="form-control" rows="2">{{ participant.goals_summary if participant else '' }}</textarea>
+    </div>
+    <div class="col-12">
+      <label class="form-label">Risk Flag</label>
+      <input type="text" name="risk_flag" class="form-control"
+             value="{{ participant.risk_flag if participant else '' }}"
+             placeholder="e.g. 24/7 cost exceeds funded budget">
+    </div>
+    <div class="col-12">
+      <label class="form-label">Notes</label>
+      <textarea name="notes" class="form-control" rows="2">{{ participant.notes if participant else '' }}</textarea>
+    </div>
+  </div>
+
+  <div class="mt-4 d-flex gap-2">
+    <button type="submit" class="btn btn-primary px-4">
+      <i class="bi bi-save me-1"></i>{{ 'Update' if participant else 'Save' }} Participant
+    </button>
+    <a href="{{ url_for('participants') }}" class="btn btn-outline-secondary">Cancel</a>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% block title %}Income Ledger — MY DSP{% endblock %}
+{% block page_title %}Income Ledger{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h4><i class="bi bi-arrow-down-circle-fill text-success me-2"></i>Income Ledger</h4>
+  <a href="{{ url_for('income_new') }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Add Entry</a>
+</div>
+
+<!-- Filter Bar -->
+<div class="table-card mb-3 p-3">
+  <form method="GET" class="row g-2 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold">Filter by Month</label>
+      <select name="month" class="form-select form-select-sm">
+        <option value="">All Months</option>
+        {% for m in months %}<option value="{{ m.month_period }}" {{ 'selected' if filter_month == m.month_period }}>{{ m.month_period }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold">Participant</label>
+      <input type="text" name="participant" class="form-control form-control-sm" value="{{ filter_participant }}" placeholder="Search participant...">
+    </div>
+    <div class="col-md-4 d-flex gap-2">
+      <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Filter</button>
+      <a href="{{ url_for('income') }}" class="btn btn-sm btn-outline-secondary">Clear</a>
+    </div>
+  </form>
+</div>
+
+<!-- Total Banner -->
+<div class="alert alert-success d-flex justify-content-between align-items-center py-2 mb-3">
+  <span><i class="bi bi-cash-stack me-2"></i><strong>Total Income (filtered):</strong></span>
+  <strong class="fs-5">${{ '{:,.2f}'.format(total) }}</strong>
+</div>
+
+<div class="table-card">
+  <div class="card-header">
+    <span><i class="bi bi-receipt me-2"></i>Income Entries ({{ entries|length }})</span>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('export_excel', month=filter_month) }}" class="btn btn-sm btn-light">
+        <i class="bi bi-file-earmark-excel me-1"></i>Excel
+      </a>
+      <a href="{{ url_for('export_pdf', month=filter_month) }}" class="btn btn-sm btn-light">
+        <i class="bi bi-file-earmark-pdf me-1"></i>PDF
+      </a>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table datatable">
+      <thead>
+        <tr><th>Date</th><th>Month</th><th>Participant</th><th>Support Category</th><th>NDIS Code</th><th>Invoice No.</th><th>Amount</th><th>Plan Mgr</th><th>Notes</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for e in entries %}
+        <tr>
+          <td class="small">{{ e.entry_date }}</td>
+          <td class="small">{{ e.month_period or '-' }}</td>
+          <td class="fw-semibold small">{{ e.participant_name or '-' }}</td>
+          <td class="small">{{ e.support_category or '-' }}</td>
+          <td><code class="small">{{ e.ndis_item_code or '-' }}</code></td>
+          <td class="small">{{ e.invoice_number or '-' }}</td>
+          <td class="amount-positive fw-semibold">${{ '{:,.2f}'.format(e.amount) }}</td>
+          <td class="small">{{ e.plan_manager_type or '-' }}</td>
+          <td class="small text-muted" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ e.notes }}">{{ e.notes or '-' }}</td>
+          <td>
+            <a href="{{ url_for('income_edit', eid=e.id) }}" class="btn btn-xs btn-outline-primary me-1"><i class="bi bi-pencil"></i></a>
+            <form method="POST" action="{{ url_for('income_delete', eid=e.id) }}" class="d-inline delete-form">
+              <button class="btn btn-xs btn-outline-danger"><i class="bi bi-trash"></i></button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="10" class="text-center py-4 text-muted">No income entries found. <a href="{{ url_for('income_new') }}">Add one</a>.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

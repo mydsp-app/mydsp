@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}Log Communication — MY DSP{% endblock %}
+{% block page_title %}Log Communication{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h4><i class="bi bi-chat-dots-fill me-2"></i>Log Communication Entry</h4>
+  <a href="{{ url_for('communications') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back</a>
+</div>
+<form method="POST" class="form-card">
+  <div class="row g-3">
+    <div class="col-md-4">
+      <label class="form-label">Date *</label>
+      <input type="date" name="comm_date" class="form-control" required value="{{ entry.comm_date[:10] if entry and entry.comm_date else '' }}">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Participant</label>
+      <select name="participant_id" id="participant_id" class="form-select">
+        <option value="">-- Select --</option>
+        {% for p in participants_list %}
+        <option value="{{ p.id }}" {{ 'selected' if entry and entry.participant_id == p.id }}>{{ p.full_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Participant Name</label>
+      <input type="text" name="participant_name" id="participant_name" class="form-control" value="{{ entry.participant_name if entry else '' }}">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Contact Type</label>
+      <select name="contact_type" class="form-select">
+        {% for t in ['Call','Email','Meeting','Home Visit','Text/SMS','Letter','Other'] %}
+        <option {{ 'selected' if entry and entry.contact_type == t }}>{{ t }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Person Assigned</label>
+      <input type="text" name="person_assigned" class="form-control" value="{{ entry.person_assigned if entry else '' }}" placeholder="e.g. Antonette">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Organisation / Role</label>
+      <input type="text" name="organisation_role" class="form-control" value="{{ entry.organisation_role if entry else '' }}" placeholder="e.g. NDIA, Family">
+    </div>
+    <div class="col-12">
+      <label class="form-label">Reason / Topic</label>
+      <textarea name="reason" class="form-control" rows="2">{{ entry.reason if entry else '' }}</textarea>
+    </div>
+    <div class="col-12">
+      <label class="form-label">Outcome / Summary</label>
+      <textarea name="outcome" class="form-control" rows="2">{{ entry.outcome if entry else '' }}</textarea>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Follow-up Required?</label>
+      <input type="text" name="follow_up" class="form-control" value="{{ entry.follow_up if entry else '' }}" placeholder="e.g. Yes — call back next week">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Follow-up Date</label>
+      <input type="date" name="follow_up_date" class="form-control" value="{{ entry.follow_up_date[:10] if entry and entry.follow_up_date else '' }}">
+    </div>
+  </div>
+  <div class="mt-4 d-flex gap-2">
+    <button type="submit" class="btn btn-primary px-4"><i class="bi bi-save me-1"></i>Save Entry</button>
+    <a href="{{ url_for('communications') }}" class="btn btn-outline-secondary">Cancel</a>
+  </div>
+</form>
+{% endblock %}

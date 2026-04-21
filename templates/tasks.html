@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block title %}Task Manager — MY DSP{% endblock %}
+{% block page_title %}Task Manager{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h4><i class="bi bi-check2-square me-2"></i>Task Manager</h4>
+  <a href="{{ url_for('task_new') }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>New Task</a>
+</div>
+<div class="table-card mb-3 p-3">
+  <form method="GET" class="row g-2 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold">Status</label>
+      <select name="status" class="form-select form-select-sm">
+        <option value="">All Statuses</option>
+        {% for s in ['Not Started','In Progress','Completed','On Hold','Closed'] %}
+        <option {{ 'selected' if filter_status == s }}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold">Priority</label>
+      <select name="priority" class="form-select form-select-sm">
+        <option value="">All Priorities</option>
+        {% for p in ['URGENT','HIGH','MEDIUM','LOW'] %}
+        <option {{ 'selected' if filter_priority == p }}>{{ p }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4 d-flex gap-2 align-items-end">
+      <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Filter</button>
+      <a href="{{ url_for('tasks') }}" class="btn btn-sm btn-outline-secondary">Clear</a>
+    </div>
+  </form>
+</div>
+<div class="table-card">
+  <div class="card-header"><span><i class="bi bi-list-check me-2"></i>Tasks ({{ tasks|length }})</span></div>
+  <div class="table-responsive">
+    <table class="table datatable">
+      <thead><tr><th>ID</th><th>Task</th><th>Priority</th><th>Participant</th><th>Assigned To</th><th>Due Date</th><th>Status</th><th>Notes</th><th>Actions</th></tr></thead>
+      <tbody>
+        {% for t in tasks %}
+        <tr class="{% if 'URGENT' in (t.priority or '') %}table-danger{% elif 'HIGH' in (t.priority or '') %}table-warning{% endif %}">
+          <td><code>{{ t.task_id }}</code></td>
+          <td class="fw-semibold small" style="max-width:200px;">{{ t.title }}</td>
+          <td>
+            {% set p = (t.priority or '').replace('⚑ ','').replace('🔴 ','').strip() %}
+            <span class="badge-status {% if 'URGENT' in p %}priority-urgent{% elif 'HIGH' in p %}priority-high{% else %}priority-medium{% endif %}">{{ p }}</span>
+          </td>
+          <td class="small">{{ t.participant_name or '-' }}</td>
+          <td class="small">{{ t.assigned_to or '-' }}</td>
+          <td class="small {% if t.due_date and t.due_date < '2026-04-20' and t.status not in ['Completed','Closed'] %}text-danger fw-semibold{% endif %}">{{ t.due_date or '-' }}</td>
+          <td>
+            {% if t.status == 'Completed' %}<span class="badge bg-success">{{ t.status }}</span>
+            {% elif t.status == 'In Progress' %}<span class="badge bg-primary">{{ t.status }}</span>
+            {% elif t.status == 'Not Started' %}<span class="badge bg-secondary">{{ t.status }}</span>
+            {% elif t.status == 'On Hold' %}<span class="badge bg-warning text-dark">{{ t.status }}</span>
+            {% else %}<span class="badge bg-dark">{{ t.status }}</span>{% endif %}
+          </td>
+          <td class="small text-muted" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ t.notes }}">{{ t.notes or '-' }}</td>
+          <td>
+            <a href="{{ url_for('task_edit', tid=t.id) }}" class="btn btn-xs btn-outline-primary me-1"><i class="bi bi-pencil"></i></a>
+            <form method="POST" action="{{ url_for('task_delete', tid=t.id) }}" class="d-inline delete-form">
+              <button class="btn btn-xs btn-outline-danger"><i class="bi bi-trash"></i></button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" class="text-center py-4 text-muted">No tasks found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

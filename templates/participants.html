@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% block title %}Participants — MY DSP{% endblock %}
+{% block page_title %}Participants{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h4><i class="bi bi-people-fill me-2"></i>Participant Master Register</h4>
+  <a href="{{ url_for('participant_new') }}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i>Add Participant
+  </a>
+</div>
+
+<!-- Summary Cards -->
+<div class="row g-3 mb-4">
+  {% set active = participants | selectattr('status','equalto','Active') | list %}
+  <div class="col-6 col-lg-3">
+    <div class="kpi-card green"><div class="kpi-label">Active</div><div class="kpi-value">{{ active|length }}</div></div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="kpi-card"><div class="kpi-label">Total Funding ($)</div>
+      <div class="kpi-value">${{ '{:,.0f}'.format(participants | sum(attribute='total_funding') | float) }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="kpi-card purple"><div class="kpi-label">Core Funding ($)</div>
+      <div class="kpi-value">${{ '{:,.0f}'.format(participants | sum(attribute='core_funding') | float) }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="kpi-card orange"><div class="kpi-label">Total</div>
+      <div class="kpi-value">{{ participants|length }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="table-card">
+  <div class="card-header">
+    <span><i class="bi bi-people me-2"></i>All Participants</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table datatable">
+      <thead>
+        <tr>
+          <th>ID</th><th>Name</th><th>NDIS No.</th><th>Support Type</th>
+          <th>Plan End</th><th>Total Funding</th><th>Plan Manager</th>
+          <th>Status</th><th>Risk</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in participants %}
+        <tr>
+          <td><code>{{ p.participant_id }}</code></td>
+          <td class="fw-semibold">{{ p.full_name }}</td>
+          <td><small>{{ p.ndis_number or '-' }}</small></td>
+          <td><small>{{ p.support_type or '-' }}</small></td>
+          <td class="small {% if p.plan_end and p.plan_end < '2026-06-01' %}text-danger fw-semibold{% endif %}">
+            {{ p.plan_end or '-' }}
+          </td>
+          <td class="amount-neutral">${{ '{:,.0f}'.format(p.total_funding or 0) }}</td>
+          <td><small>{{ p.plan_manager or '-' }}</small></td>
+          <td>
+            <span class="badge-status status-{{ p.status|lower if p.status else 'inactive' }}">
+              {{ p.status or 'Unknown' }}
+            </span>
+          </td>
+          <td>
+            {% if p.risk_flag %}
+            <span class="badge-status risk-high" title="{{ p.risk_flag }}">
+              <i class="bi bi-exclamation-triangle-fill"></i> Risk
+            </span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="{{ url_for('participant_edit', pid=p.id) }}" class="btn btn-xs btn-outline-primary me-1" title="Edit">
+              <i class="bi bi-pencil"></i>
+            </a>
+            {% if session.role == 'admin' %}
+            <form method="POST" action="{{ url_for('participant_delete', pid=p.id) }}" class="d-inline delete-form">
+              <button class="btn btn-xs btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="10" class="text-center py-4 text-muted">No participants yet. <a href="{{ url_for('participant_new') }}">Add one</a>.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

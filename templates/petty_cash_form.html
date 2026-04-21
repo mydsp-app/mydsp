@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block title %}New Petty Cash Entry — MY DSP{% endblock %}
+{% block page_title %}New Petty Cash Entry{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h4><i class="bi bi-cash-coin me-2"></i>New Petty Cash Entry</h4>
+  <a href="{{ url_for('petty_cash') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back</a>
+</div>
+<form method="POST" class="form-card">
+  <div class="row g-3">
+    <div class="col-md-4">
+      <label class="form-label">Date *</label>
+      <input type="date" name="entry_date" class="form-control" required value="{{ entry.entry_date[:10] if entry and entry.entry_date else '' }}">
+    </div>
+    <div class="col-md-8">
+      <label class="form-label">Description *</label>
+      <input type="text" name="description" class="form-control" required value="{{ entry.description if entry else '' }}" placeholder="e.g. Bunnings — cleaning supplies">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Expense ($)</label>
+      <div class="input-group"><span class="input-group-text">$</span>
+        <input type="number" name="expense" class="form-control" step="0.01" min="0" value="{{ entry.expense if entry else '' }}" placeholder="0.00">
+      </div>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Cash In ($)</label>
+      <div class="input-group"><span class="input-group-text">$</span>
+        <input type="number" name="cash_in" class="form-control" step="0.01" min="0" value="{{ entry.cash_in if entry else '' }}" placeholder="0.00">
+      </div>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Location / Client</label>
+      <input type="text" name="location" class="form-control" value="{{ entry.location if entry else '' }}" placeholder="e.g. Camms Rd">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Receipt Obtained?</label>
+      <select name="receipt_obtained" class="form-select">
+        <option value="No">No</option>
+        <option value="Yes" {{ 'selected' if entry and entry.receipt_obtained == 'Yes' }}>Yes</option>
+      </select>
+    </div>
+    <div class="col-12">
+      <label class="form-label">Notes</label>
+      <input type="text" name="notes" class="form-control" value="{{ entry.notes if entry else '' }}">
+    </div>
+  </div>
+  <div class="mt-4 d-flex gap-2">
+    <button type="submit" class="btn btn-primary px-4"><i class="bi bi-save me-1"></i>Save Entry</button>
+    <a href="{{ url_for('petty_cash') }}" class="btn btn-outline-secondary">Cancel</a>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% block title %}Issues Register — MY DSP{% endblock %}
+{% block page_title %}Issues Register{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h4><i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Matters to Attend &amp; Issues Register</h4>
+  <a href="{{ url_for('issue_new') }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Log Issue</a>
+</div>
+<div class="table-card mb-3 p-3">
+  <form method="GET" class="row g-2 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold">Status</label>
+      <select name="status" class="form-select form-select-sm">
+        <option value="">All</option>
+        {% for s in ['Open','In Progress','Monitoring','Resolved','Closed'] %}
+        <option {{ 'selected' if filter_status == s }}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label small fw-semibold">Risk Level</label>
+      <select name="risk" class="form-select form-select-sm">
+        <option value="">All</option>
+        {% for r in ['Critical','High','Medium','Low'] %}
+        <option {{ 'selected' if filter_risk == r }}>{{ r }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4 d-flex gap-2 align-items-end">
+      <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Filter</button>
+      <a href="{{ url_for('issues') }}" class="btn btn-sm btn-outline-secondary">Clear</a>
+    </div>
+  </form>
+</div>
+<div class="table-card">
+  <div class="card-header"><span><i class="bi bi-shield-exclamation me-2"></i>Issues ({{ issues|length }})</span></div>
+  <div class="table-responsive">
+    <table class="table datatable">
+      <thead><tr><th>ID</th><th>Date</th><th>Participant</th><th>Description</th><th>Risk</th><th>Action Required</th><th>Assigned</th><th>Due</th><th>Status</th><th>Resolution</th><th>Actions</th></tr></thead>
+      <tbody>
+        {% for i in issues %}
+        <tr class="{% if i.risk_level == 'Critical' %}table-danger{% elif i.risk_level == 'High' %}table-warning{% endif %}">
+          <td><code>{{ i.issue_id }}</code></td>
+          <td class="small">{{ i.issue_date }}</td>
+          <td class="fw-semibold small">{{ i.participant_name or 'All' }}</td>
+          <td class="small" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ i.description }}">{{ i.description }}</td>
+          <td><span class="badge-status risk-{{ (i.risk_level or 'low')|lower }}">{{ i.risk_level or '-' }}</span></td>
+          <td class="small" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ i.action_required }}">{{ i.action_required or '-' }}</td>
+          <td class="small">{{ i.assigned_to or '-' }}</td>
+          <td class="small {% if i.due_date and i.due_date < '2026-04-20' and i.status == 'Open' %}text-danger fw-bold{% endif %}">{{ i.due_date or '-' }}</td>
+          <td>
+            {% if i.status == 'Open' %}<span class="badge bg-danger">Open</span>
+            {% elif i.status == 'Monitoring' %}<span class="badge bg-warning text-dark">Monitoring</span>
+            {% elif i.status == 'Resolved' %}<span class="badge bg-success">Resolved</span>
+            {% else %}<span class="badge bg-secondary">{{ i.status }}</span>{% endif %}
+          </td>
+          <td class="small text-muted" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ i.resolution or '-' }}</td>
+          <td>
+            <a href="{{ url_for('issue_edit', iid=i.id) }}" class="btn btn-xs btn-outline-primary me-1"><i class="bi bi-pencil"></i></a>
+            <form method="POST" action="{{ url_for('issue_delete', iid=i.id) }}" class="d-inline delete-form">
+              <button class="btn btn-xs btn-outline-danger"><i class="bi bi-trash"></i></button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="11" class="text-center py-4 text-muted">No issues logged. All clear!</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

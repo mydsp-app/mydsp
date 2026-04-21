@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block title %}Petty Cash — MY DSP{% endblock %}
+{% block page_title %}Petty Cash{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h4><i class="bi bi-cash-coin me-2"></i>Petty Cash Register</h4>
+  <a href="{{ url_for('petty_cash_new') }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Add Entry</a>
+</div>
+<div class="row g-3 mb-4">
+  <div class="col-md-4"><div class="kpi-card green"><div class="kpi-label">Current Balance</div><div class="kpi-value">${{ '{:,.2f}'.format(balance) }}</div></div></div>
+  <div class="col-md-4"><div class="kpi-card"><div class="kpi-label">Total Cash In</div><div class="kpi-value">${{ '{:,.2f}'.format(total_in) }}</div></div></div>
+  <div class="col-md-4"><div class="kpi-card red"><div class="kpi-label">Total Expenses</div><div class="kpi-value">${{ '{:,.2f}'.format(total_expense) }}</div></div></div>
+</div>
+<div class="table-card">
+  <div class="card-header"><span><i class="bi bi-journal-cash me-2"></i>Petty Cash Entries ({{ entries|length }})</span></div>
+  <div class="table-responsive">
+    <table class="table datatable">
+      <thead><tr><th>Date</th><th>Description</th><th>Expense ($)</th><th>Cash In ($)</th><th>Balance ($)</th><th>Location</th><th>Receipt?</th><th>Actions</th></tr></thead>
+      <tbody>
+        {% for e in entries %}
+        <tr>
+          <td class="small">{{ e.entry_date }}</td>
+          <td class="small">{{ e.description }}</td>
+          <td class="{% if e.expense %}amount-negative{% endif %}">{{ '${:,.2f}'.format(e.expense) if e.expense else '-' }}</td>
+          <td class="{% if e.cash_in %}amount-positive{% endif %}">{{ '${:,.2f}'.format(e.cash_in) if e.cash_in else '-' }}</td>
+          <td class="fw-semibold">${{ '{:,.2f}'.format(e.balance or 0) }}</td>
+          <td class="small">{{ e.location or '-' }}</td>
+          <td>
+            {% if e.receipt_obtained == 'Yes' %}
+            <span class="badge bg-success">Yes</span>
+            {% else %}
+            <span class="badge bg-secondary">No</span>
+            {% endif %}
+          </td>
+          <td>
+            <form method="POST" action="{{ url_for('petty_cash_delete', eid=e.id) }}" class="d-inline delete-form">
+              <button class="btn btn-xs btn-outline-danger"><i class="bi bi-trash"></i></button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="text-center py-4 text-muted">No petty cash entries yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

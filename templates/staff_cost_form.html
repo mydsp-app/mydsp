@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Edit' if entry else 'New' }} Staff Cost — MY DSP{% endblock %}
+{% block page_title %}{{ 'Edit' if entry else 'New' }} Staff Cost Entry{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h4><i class="bi bi-person-badge-fill me-2"></i>{{ 'Edit' if entry else 'New' }} Staff Cost Entry</h4>
+  <a href="{{ url_for('staff_costs') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back</a>
+</div>
+<form method="POST" class="form-card">
+  <div class="section-title">Shift Details</div>
+  <div class="row g-3">
+    <div class="col-md-3">
+      <label class="form-label">Pay Date *</label>
+      <input type="date" name="pay_date" class="form-control" required value="{{ entry.pay_date[:10] if entry and entry.pay_date else '' }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Month Period</label>
+      <input type="text" name="month_period" class="form-control" placeholder="e.g. April 2026" value="{{ entry.month_period if entry else '' }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Staff Name *</label>
+      <input type="text" name="staff_name" class="form-control" required value="{{ entry.staff_name if entry else '' }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Role</label>
+      <select name="role" class="form-select">
+        {% for r in ['SW1','SW2','SW3','Support Coordinator','Team Leader','Manager','Other'] %}
+        <option {{ 'selected' if entry and entry.role == r }}>{{ r }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Participant</label>
+      <select name="participant_id" id="participant_id" class="form-select">
+        <option value="">-- Select --</option>
+        {% for p in participants_list %}
+        <option value="{{ p.id }}" {{ 'selected' if entry and entry.participant_id == p.id }}>{{ p.full_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Participant Name (override)</label>
+      <input type="text" name="participant_name" id="participant_name" class="form-control" value="{{ entry.participant_name if entry else '' }}">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Shift Type</label>
+      <select name="shift_type" id="shift_type" class="form-select">
+        <option value="">-- Select --</option>
+        {% for s in ['Weekday Day','Weekday Evening','Saturday','Sunday','Public Holiday','SIL Night','SIL Active Night'] %}
+        <option {{ 'selected' if entry and entry.shift_type == s }}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-8">
+      <label class="form-label">Schedule Notes</label>
+      <input type="text" name="schedule_notes" class="form-control" placeholder="e.g. Mon–Wed 7:30am–3:30pm, 12 shifts × 8h" value="{{ entry.schedule_notes if entry else '' }}">
+    </div>
+  </div>
+
+  <div class="section-title">Rate Calculation <small class="text-muted fw-normal">(auto-calculates)</small></div>
+  <div class="row g-3">
+    <div class="col-md-2">
+      <label class="form-label">Qty (Hours)</label>
+      <input type="number" name="qty_hours" id="qty_hours" class="form-control" step="0.5" value="{{ entry.qty_hours if entry else '' }}">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label">NDIS Rate ($/hr)</label>
+      <input type="number" name="ndis_rate" id="ndis_rate" class="form-control" step="0.01" value="{{ entry.ndis_rate if entry else '' }}">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label">NDIS Revenue ($)</label>
+      <input type="number" id="ndis_revenue" class="form-control bg-light" readonly value="{{ entry.ndis_revenue if entry else '' }}">
+      <input type="hidden" name="ndis_revenue" id="ndis_revenue_hidden" value="{{ entry.ndis_revenue if entry else '' }}">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label">Actual Rate ($/hr)</label>
+      <input type="number" name="actual_rate" id="actual_rate" class="form-control" step="0.01" value="{{ entry.actual_rate if entry else '' }}">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label">Actual Wage ($)</label>
+      <input type="number" id="actual_wage" class="form-control bg-light" readonly value="{{ entry.actual_wage if entry else '' }}">
+      <input type="hidden" name="actual_wage" id="actual_wage_hidden" value="{{ entry.actual_wage if entry else '' }}">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label">Super 12% ($)</label>
+      <input type="number" id="super_amount" class="form-control bg-light" readonly value="{{ entry.super_amount if entry else '' }}">
+      <input type="hidden" name="super_amount" id="super_amount_hidden" value="{{ entry.super_amount if entry else '' }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Total Cost ($)</label>
+      <input type="number" id="total_cost" class="form-control bg-light fw-bold" readonly value="{{ entry.total_cost if entry else '' }}">
+      <input type="hidden" name="total_cost" id="total_cost_hidden" value="{{ entry.total_cost if entry else '' }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Margin ($)</label>
+      <input type="number" id="margin" class="form-control bg-light fw-bold" readonly value="{{ entry.margin if entry else '' }}">
+      <input type="hidden" name="margin" id="margin_hidden" value="{{ entry.margin if entry else '' }}">
+    </div>
+  </div>
+
+  <div class="mt-4 d-flex gap-2">
+    <button type="submit" class="btn btn-primary px-4" onclick="syncHidden()"><i class="bi bi-save me-1"></i>Save Entry</button>
+    <a href="{{ url_for('staff_costs') }}" class="btn btn-outline-secondary">Cancel</a>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+function syncHidden() {
+  ['ndis_revenue','actual_wage','super_amount','total_cost','margin'].forEach(function(id) {
+    document.getElementById(id+'_hidden').value = document.getElementById(id).value;
+  });
+}
+// Also sync on any input change
+document.addEventListener('input', syncHidden);
+</script>
+{% endblock %}

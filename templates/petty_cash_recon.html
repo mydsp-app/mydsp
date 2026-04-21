@@ -1,0 +1,220 @@
+{% extends 'base.html' %}
+{% block title %}Petty Cash Reconciliation — MY DSP{% endblock %}
+{% block page_title %}Petty Cash Reconciliation{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h4><i class="bi bi-journal-check me-2"></i>Petty Cash Reconciliation Report</h4>
+  <div class="d-flex gap-2">
+    {% if month %}
+    <a href="{{ url_for('petty_cash_recon_pdf', month=month) }}" class="btn btn-danger">
+      <i class="bi bi-file-earmark-pdf me-1"></i>Export PDF
+    </a>
+    <a href="{{ url_for('petty_cash_recon_excel', month=month) }}" class="btn btn-success">
+      <i class="bi bi-file-earmark-excel me-1"></i>Export Excel
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Month selector -->
+<div class="table-card mb-4 p-3">
+  <form method="GET" class="row g-2 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label fw-semibold">Select Month to Reconcile</label>
+      <select name="month" class="form-select" onchange="this.form.submit()">
+        <option value="">-- Choose Month --</option>
+        {% for m in months %}
+        <option value="{{ m.m }}" {{ 'selected' if month == m.m }}>{{ m.m }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </form>
+</div>
+
+{% if month %}
+
+<!-- Opening Balance Settings -->
+<div class="table-card mb-4 p-3">
+  <h6 class="fw-bold text-navy mb-3"><i class="bi bi-gear me-2"></i>Reconciliation Settings for {{ month }}</h6>
+  <form method="POST" action="{{ url_for('petty_cash_recon_settings') }}" class="row g-3 align-items-end">
+    <input type="hidden" name="month_period" value="{{ month }}">
+    <div class="col-md-3">
+      <label class="form-label">Opening Balance ($)</label>
+      <div class="input-group">
+        <span class="input-group-text">$</span>
+        <input type="number" name="opening_balance" class="form-control" step="0.01"
+               value="{{ opening_balance }}" placeholder="0.00">
+      </div>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Monthly Top-Up ($)</label>
+      <div class="input-group">
+        <span class="input-group-text">$</span>
+        <input type="number" name="monthly_topup" class="form-control" step="0.01"
+               placeholder="500.00">
+      </div>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Notes</label>
+      <input type="text" name="notes" class="form-control" placeholder="e.g. Carry-over from March">
+    </div>
+    <div class="col-md-2">
+      <button type="submit" class="btn btn-primary w-100">
+        <i class="bi bi-save me-1"></i>Save
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- Summary Statement -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="kpi-card">
+      <div class="kpi-label">Opening Balance</div>
+      <div class="kpi-value">${{ '{:,.2f}'.format(opening_balance) }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="kpi-card green">
+      <div class="kpi-label">Cash In (Top-ups)</div>
+      <div class="kpi-value">${{ '{:,.2f}'.format(total_in) }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="kpi-card red">
+      <div class="kpi-label">Total Expenses</div>
+      <div class="kpi-value">${{ '{:,.2f}'.format(total_out) }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="kpi-card {% if closing_balance >= 0 %}green{% else %}red{% endif %}">
+      <div class="kpi-label">Closing Balance</div>
+      <div class="kpi-value {% if closing_balance < 0 %}text-danger{% endif %}">
+        ${{ '{:,.2f}'.format(closing_balance) }}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Formal Statement -->
+<div class="form-card mb-4" style="max-width:680px;">
+  <div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+      <h5 class="fw-bold text-navy mb-0">MY DSP</h5>
+      <div class="text-muted small">Petty Cash Reconciliation Statement</div>
+      <div class="text-muted small">Period: <strong>{{ month }}</strong></div>
+    </div>
+    <div class="text-end text-muted small">
+      Prepared: {{ now.strftime('%d %B %Y') }}<br>
+      By: {{ session.full_name }}
+    </div>
+  </div>
+  <hr>
+  <table class="table table-sm table-borderless mb-0">
+    <tbody>
+      <tr>
+        <td class="fw-semibold">Opening Balance</td>
+        <td class="text-end">${{ '{:,.2f}'.format(opening_balance) }}</td>
+      </tr>
+      <tr>
+        <td class="ps-3 text-muted">Add: Cash Received / Top-ups</td>
+        <td class="text-end">${{ '{:,.2f}'.format(total_in) }}</td>
+      </tr>
+      <tr>
+        <td class="ps-3 text-muted">Less: Total Expenditure</td>
+        <td class="text-end text-danger">({{ '{:,.2f}'.format(total_out) }})</td>
+      </tr>
+      <tr class="border-top">
+        <td class="fw-bold fs-6 text-navy">Closing Balance</td>
+        <td class="text-end fw-bold fs-6 text-navy">${{ '{:,.2f}'.format(closing_balance) }}</td>
+      </tr>
+    </tbody>
+  </table>
+  <hr>
+  {% if categories %}
+  <div class="section-title mt-2">Breakdown by Location / Purpose</div>
+  <table class="table table-sm table-borderless">
+    <tbody>
+      {% for loc, amt in categories.items() %}
+      <tr>
+        <td class="ps-3 text-muted">{{ loc }}</td>
+        <td class="text-end">${{ '{:,.2f}'.format(amt) }}</td>
+      </tr>
+      {% endfor %}
+      <tr class="border-top">
+        <td class="fw-semibold">Total</td>
+        <td class="text-end fw-semibold">${{ '{:,.2f}'.format(total_out) }}</td>
+      </tr>
+    </tbody>
+  </table>
+  <hr>
+  {% endif %}
+  <div class="row mt-3">
+    <div class="col-6">
+      <div class="text-muted small mb-4">Authorised by:</div>
+      <div style="border-top:1px solid #999;padding-top:4px;" class="text-muted small">Signature / Name</div>
+    </div>
+    <div class="col-6">
+      <div class="text-muted small mb-4">Date:</div>
+      <div style="border-top:1px solid #999;padding-top:4px;" class="text-muted small">DD / MM / YYYY</div>
+    </div>
+  </div>
+</div>
+
+<!-- Transaction Table -->
+<div class="table-card">
+  <div class="card-header">
+    <span><i class="bi bi-table me-2"></i>Transaction Detail — {{ month }} ({{ entries|length }} entries)</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm datatable">
+      <thead>
+        <tr><th>#</th><th>Date</th><th>Description</th><th>Location</th><th>Expense ($)</th><th>Cash In ($)</th><th>Running Balance ($)</th><th>Receipt?</th></tr>
+      </thead>
+      <tbody>
+        {% set ns = namespace(running=opening_balance) %}
+        {% for e in entries %}
+        {% set ns.running = ns.running + (e.cash_in or 0) - (e.expense or 0) %}
+        <tr>
+          <td class="text-muted small">{{ loop.index }}</td>
+          <td class="small">{{ e.entry_date }}</td>
+          <td class="small">{{ e.description }}</td>
+          <td class="small">{{ e.location or '-' }}</td>
+          <td class="{% if e.expense %}text-danger{% endif %}">
+            {% if e.expense and e.expense > 0 %}({{ '{:,.2f}'.format(e.expense) }}){% else %}-{% endif %}
+          </td>
+          <td class="{% if e.cash_in %}text-success{% endif %}">
+            {% if e.cash_in and e.cash_in > 0 %}${{ '{:,.2f}'.format(e.cash_in) }}{% else %}-{% endif %}
+          </td>
+          <td class="fw-semibold {% if ns.running < 0 %}text-danger{% endif %}">${{ '{:,.2f}'.format(ns.running) }}</td>
+          <td>
+            {% if e.receipt_obtained == 'Yes' %}<span class="badge bg-success">Yes</span>
+            {% else %}<span class="badge bg-secondary">No</span>{% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="text-center py-4 text-muted">No transactions for this period.</td></tr>
+        {% endfor %}
+      </tbody>
+      {% if entries %}
+      <tfoot>
+        <tr class="fw-bold table-light">
+          <td colspan="4">TOTALS</td>
+          <td class="text-danger">({{ '{:,.2f}'.format(total_out) }})</td>
+          <td class="text-success">${{ '{:,.2f}'.format(total_in) }}</td>
+          <td class="text-navy">${{ '{:,.2f}'.format(closing_balance) }}</td>
+          <td></td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+
+{% else %}
+<div class="alert alert-info">
+  <i class="bi bi-info-circle me-2"></i>
+  Select a month above to generate the reconciliation report. Once generated, you can export it to PDF or Excel to send to your accountant.
+</div>
+{% endif %}
+{% endblock %}

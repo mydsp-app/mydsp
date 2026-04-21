@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Edit' if task else 'New' }} Task — MY DSP{% endblock %}
+{% block page_title %}{{ 'Edit' if task else 'New' }} Task{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h4><i class="bi bi-check2-square me-2"></i>{{ 'Edit Task' if task else 'New Task' }}</h4>
+  <a href="{{ url_for('tasks') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back</a>
+</div>
+<form method="POST" class="form-card">
+  <div class="row g-3">
+    <div class="col-12">
+      <label class="form-label">Task Title *</label>
+      <input type="text" name="title" class="form-control" required value="{{ task.title if task else '' }}" placeholder="Describe the task clearly">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Priority</label>
+      <select name="priority" class="form-select">
+        {% for p in ['URGENT','HIGH','MEDIUM','LOW'] %}
+        <option {{ 'selected' if task and p in (task.priority or '') }}>{{ p }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Status</label>
+      <select name="status" class="form-select">
+        {% for s in ['Not Started','In Progress','Completed','On Hold','Closed'] %}
+        <option {{ 'selected' if task and task.status == s }}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Due Date</label>
+      <input type="date" name="due_date" class="form-control" value="{{ task.due_date[:10] if task and task.due_date else '' }}">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Participant</label>
+      <select name="participant_id" id="participant_id" class="form-select">
+        <option value="">-- None --</option>
+        {% for p in participants_list %}
+        <option value="{{ p.id }}" {{ 'selected' if task and task.participant_id == p.id }}>{{ p.full_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Participant Name (or All / Finance)</label>
+      <input type="text" name="participant_name" id="participant_name" class="form-control" value="{{ task.participant_name if task else '' }}" placeholder="e.g. All, Finance, Timothy Ky">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Assigned To</label>
+      <input type="text" name="assigned_to" class="form-control" value="{{ task.assigned_to if task else '' }}" placeholder="e.g. Antonette, Mali">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Completed Date</label>
+      <input type="date" name="completed_date" class="form-control" value="{{ task.completed_date[:10] if task and task.completed_date else '' }}">
+    </div>
+    <div class="col-12">
+      <label class="form-label">Notes</label>
+      <textarea name="notes" class="form-control" rows="3">{{ task.notes if task else '' }}</textarea>
+    </div>
+  </div>
+  <div class="mt-4 d-flex gap-2">
+    <button type="submit" class="btn btn-primary px-4"><i class="bi bi-save me-1"></i>{{ 'Update' if task else 'Create' }} Task</button>
+    <a href="{{ url_for('tasks') }}" class="btn btn-outline-secondary">Cancel</a>
+  </div>
+</form>
+{% endblock %}

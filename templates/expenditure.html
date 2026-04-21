@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block title %}Expenditure — MY DSP{% endblock %}
+{% block page_title %}Expenditure{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h4><i class="bi bi-arrow-up-circle-fill text-danger me-2"></i>Expenditure</h4>
+  <a href="{{ url_for('expenditure_new') }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Add Entry</a>
+</div>
+<div class="table-card mb-3 p-3">
+  <form method="GET" class="row g-2 align-items-end">
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold">Month</label>
+      <select name="month" class="form-select form-select-sm">
+        <option value="">All Months</option>
+        {% for m in months %}<option value="{{ m.month_period }}" {{ 'selected' if filter_month == m.month_period }}>{{ m.month_period }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold">Category</label>
+      <select name="category" class="form-select form-select-sm">
+        <option value="">All Categories</option>
+        {% for c in categories %}<option value="{{ c.category }}" {{ 'selected' if filter_cat == c.category }}>{{ c.category }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4 d-flex gap-2 align-items-end">
+      <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Filter</button>
+      <a href="{{ url_for('expenditure') }}" class="btn btn-sm btn-outline-secondary">Clear</a>
+    </div>
+  </form>
+</div>
+<div class="alert alert-danger d-flex justify-content-between align-items-center py-2 mb-3">
+  <span><i class="bi bi-arrow-up-circle me-2"></i><strong>Total Expenditure (filtered):</strong></span>
+  <strong class="fs-5">${{ '{:,.2f}'.format(total) }}</strong>
+</div>
+<div class="table-card">
+  <div class="card-header">
+    <span><i class="bi bi-receipt-cutoff me-2"></i>Expenditure Entries ({{ entries|length }})</span>
+    <a href="{{ url_for('export_excel', month=filter_month) }}" class="btn btn-sm btn-light"><i class="bi bi-file-earmark-excel me-1"></i>Export</a>
+  </div>
+  <div class="table-responsive">
+    <table class="table datatable">
+      <thead><tr><th>Date</th><th>Month</th><th>Category</th><th>Description</th><th>Supplier</th><th>Amount</th><th>Participant</th><th>Payment</th><th>Actions</th></tr></thead>
+      <tbody>
+        {% for e in entries %}
+        <tr>
+          <td class="small">{{ e.entry_date }}</td>
+          <td class="small">{{ e.month_period or '-' }}</td>
+          <td><span class="badge bg-secondary">{{ e.category or '-' }}</span></td>
+          <td class="small">{{ e.description or '-' }}</td>
+          <td class="small">{{ e.supplier or '-' }}</td>
+          <td class="amount-negative fw-semibold">${{ '{:,.2f}'.format(e.amount) }}</td>
+          <td class="small">{{ e.participant_name or '-' }}</td>
+          <td class="small">{{ e.payment_method or '-' }}</td>
+          <td>
+            <a href="{{ url_for('expenditure_edit', eid=e.id) }}" class="btn btn-xs btn-outline-primary me-1"><i class="bi bi-pencil"></i></a>
+            <form method="POST" action="{{ url_for('expenditure_delete', eid=e.id) }}" class="d-inline delete-form">
+              <button class="btn btn-xs btn-outline-danger"><i class="bi bi-trash"></i></button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" class="text-center py-4 text-muted">No entries found. <a href="{{ url_for('expenditure_new') }}">Add one</a>.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
