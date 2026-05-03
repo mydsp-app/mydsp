@@ -1,25 +1,53 @@
 import os
 import hashlib
 import json
-from datetime import datetime
 import psycopg2
 import psycopg2.extras
 
-_DATABASE_URL = os.environ.get('DATABASE_URL', '')
-if _DATABASE_URL.startswith('postgres://'):
-    _DATABASE_URL = _DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+DATABASE_URL = os.environ.get('DATABASE_URL', '')
 
 
-class _PGConn:
-    """Thin sqlite3-compatible wrapper around a psycopg2 connection."""
+class Row:
+    """Supports row['key'] and row[index] access — mirrors sqlite3.Row behaviour."""
+    def __init__(self, data):
+        self._data = dict(data)
+        self._keys = list(data.keys())
 
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return self._data[self._keys[key]]
+        return self._data[key]
+
+    def __iter__(self):
+        return iter(self._data.values())
+
+    def keys(self):
+        return self._keys
+
+    def get(self, key, default=None):
+        return self._data.get(key, default)
+
+
+class PGCursor:
+    def __init__(self, cursor):
+        self._cursor = cursor
+
+    def fetchone(self):
+        row = self._cursor.fetchone()
+        return Row(row) if row else None
+
+    def fetchall(self):
+        return [Row(r) for r in (self._cursor.fetchall() or [])]
+
+
+class PGConnection:
     def __init__(self, conn):
         self._conn = conn
 
-    def execute(self, sql, params=()):
-        cur = self._conn.cursor()
-        cur.execute(sql, params if params else None)
-        return cur
+    def execute(self, sql, params=None):
+        cur = self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(sql, params if params is not None else ())
+        return PGCursor(cur)
 
     def commit(self):
         self._conn.commit()
@@ -29,16 +57,16 @@ class _PGConn:
 
 
 def get_db():
-    conn = psycopg2.connect(_DATABASE_URL, cursor_factory=psycopg2.extras.DictCursor)
-    return _PGConn(conn)
+    conn = psycopg2.connect(DATABASE_URL)
+    return PGConnection(conn)
 
 
 def init_db():
-    conn = get_db()
+    conn = psycopg2.connect(DATABASE_URL)
+    cur = conn.cursor()
 
     tables = [
-        """
-        CREATE TABLE IF NOT EXISTS users (
+        """CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
             username TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
@@ -46,10 +74,8 @@ def init_db():
             role TEXT NOT NULL DEFAULT 'staff',
             active INTEGER NOT NULL DEFAULT 1,
             created_at TIMESTAMP DEFAULT NOW()
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS participants (
+        )""",
+        """CREATE TABLE IF NOT EXISTS participants (
             id SERIAL PRIMARY KEY,
             participant_id TEXT UNIQUE,
             full_name TEXT NOT NULL,
@@ -79,10 +105,8 @@ def init_db():
             notes TEXT,
             created_at TIMESTAMP DEFAULT NOW(),
             updated_at TIMESTAMP DEFAULT NOW()
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS income_entries (
+        )""",
+        """CREATE TABLE IF NOT EXISTS income_entries (
             id SERIAL PRIMARY KEY,
             entry_date TEXT NOT NULL,
             month_period TEXT,
@@ -97,10 +121,8 @@ def init_db():
             created_by INTEGER REFERENCES users(id),
             created_at TIMESTAMP DEFAULT NOW(),
             updated_at TIMESTAMP DEFAULT NOW()
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS expenditure_entries (
+        )""",
+        """CREATE TABLE IF NOT EXISTS expenditure_entries (
             id SERIAL PRIMARY KEY,
             entry_date TEXT NOT NULL,
             month_period TEXT,
@@ -117,10 +139,8 @@ def init_db():
             created_by INTEGER REFERENCES users(id),
             created_at TIMESTAMP DEFAULT NOW(),
             updated_at TIMESTAMP DEFAULT NOW()
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS staff_costs (
+        )""",
+        """CREATE TABLE IF NOT EXISTS staff_costs (
             id SERIAL PRIMARY KEY,
             pay_date TEXT NOT NULL,
             month_period TEXT,
@@ -141,10 +161,8 @@ def init_db():
             created_by INTEGER REFERENCES users(id),
             created_at TIMESTAMP DEFAULT NOW(),
             updated_at TIMESTAMP DEFAULT NOW()
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS petty_cash (
+        )""",
+        """CREATE TABLE IF NOT EXISTS petty_cash (
             id SERIAL PRIMARY KEY,
             entry_date TEXT NOT NULL,
             description TEXT NOT NULL,
@@ -156,10 +174,8 @@ def init_db():
             notes TEXT,
             created_by INTEGER REFERENCES users(id),
             created_at TIMESTAMP DEFAULT NOW()
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS tasks (
+        )""",
+        """CREATE TABLE IF NOT EXISTS tasks (
             id SERIAL PRIMARY KEY,
             task_id TEXT UNIQUE,
             title TEXT NOT NULL,
@@ -174,10 +190,8 @@ def init_db():
             created_by INTEGER REFERENCES users(id),
             created_at TIMESTAMP DEFAULT NOW(),
             updated_at TIMESTAMP DEFAULT NOW()
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS communications (
+        )""",
+        """CREATE TABLE IF NOT EXISTS communications (
             id SERIAL PRIMARY KEY,
             comm_date TEXT NOT NULL,
             participant_id INTEGER REFERENCES participants(id),
@@ -191,10 +205,8 @@ def init_db():
             follow_up_date TEXT,
             created_by INTEGER REFERENCES users(id),
             created_at TIMESTAMP DEFAULT NOW()
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS issues (
+        )""",
+        """CREATE TABLE IF NOT EXISTS issues (
             id SERIAL PRIMARY KEY,
             issue_id TEXT UNIQUE,
             issue_date TEXT NOT NULL,
@@ -210,10 +222,8 @@ def init_db():
             created_by INTEGER REFERENCES users(id),
             created_at TIMESTAMP DEFAULT NOW(),
             updated_at TIMESTAMP DEFAULT NOW()
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS plan_reviews (
+        )""",
+        """CREATE TABLE IF NOT EXISTS plan_reviews (
             id SERIAL PRIMARY KEY,
             participant_id INTEGER REFERENCES participants(id),
             participant_name TEXT,
@@ -228,10 +238,8 @@ def init_db():
             prep_status TEXT,
             notes TEXT,
             updated_at TIMESTAMP DEFAULT NOW()
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS goals (
+        )""",
+        """CREATE TABLE IF NOT EXISTS goals (
             id SERIAL PRIMARY KEY,
             participant_id INTEGER REFERENCES participants(id),
             participant_name TEXT,
@@ -244,10 +252,8 @@ def init_db():
             status TEXT DEFAULT 'In Progress',
             created_at TIMESTAMP DEFAULT NOW(),
             updated_at TIMESTAMP DEFAULT NOW()
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS audit_log (
+        )""",
+        """CREATE TABLE IF NOT EXISTS audit_log (
             id SERIAL PRIMARY KEY,
             user_id INTEGER REFERENCES users(id),
             username TEXT,
@@ -258,10 +264,8 @@ def init_db():
             new_values TEXT,
             ip_address TEXT,
             created_at TIMESTAMP DEFAULT NOW()
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS budgets (
+        )""",
+        """CREATE TABLE IF NOT EXISTS budgets (
             id SERIAL PRIMARY KEY,
             month_period TEXT NOT NULL,
             category TEXT NOT NULL,
@@ -273,45 +277,44 @@ def init_db():
             created_by INTEGER REFERENCES users(id),
             created_at TIMESTAMP DEFAULT NOW(),
             updated_at TIMESTAMP DEFAULT NOW()
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS petty_cash_settings (
+        )""",
+        """CREATE TABLE IF NOT EXISTS petty_cash_settings (
             id SERIAL PRIMARY KEY,
             month_period TEXT UNIQUE NOT NULL,
             opening_balance REAL DEFAULT 0,
             monthly_topup REAL DEFAULT 500,
             notes TEXT,
             updated_at TIMESTAMP DEFAULT NOW()
-        )
-        """,
+        )""",
     ]
 
-    for sql in tables:
-        conn.execute(sql)
+    for stmt in tables:
+        cur.execute(stmt)
 
     admin_hash = hashlib.sha256("Admin@123".encode()).hexdigest()
-    conn.execute("""
+    cur.execute("""
         INSERT INTO users (username, password_hash, full_name, role)
         VALUES (%s, %s, %s, %s)
         ON CONFLICT (username) DO NOTHING
     """, ('admin', admin_hash, 'Administrator', 'admin'))
 
     staff_hash = hashlib.sha256("Staff@123".encode()).hexdigest()
-    conn.execute("""
+    cur.execute("""
         INSERT INTO users (username, password_hash, full_name, role)
         VALUES (%s, %s, %s, %s)
         ON CONFLICT (username) DO NOTHING
     """, ('staff', staff_hash, 'Staff User', 'staff'))
 
     conn.commit()
+    cur.close()
     conn.close()
     print("Database initialised successfully.")
 
 
 def log_audit(user_id, username, action, table_name, record_id=None, old_vals=None, new_vals=None, ip=None):
-    conn = get_db()
-    conn.execute("""
+    conn = psycopg2.connect(DATABASE_URL)
+    cur = conn.cursor()
+    cur.execute("""
         INSERT INTO audit_log (user_id, username, action, table_name, record_id, old_values, new_values, ip_address)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
     """, (
@@ -321,6 +324,7 @@ def log_audit(user_id, username, action, table_name, record_id=None, old_vals=No
         ip
     ))
     conn.commit()
+    cur.close()
     conn.close()
 
 

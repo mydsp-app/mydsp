@@ -162,14 +162,13 @@ def participant_new():
         # Auto-generate participant_id
         count = db.execute("SELECT COUNT(*) FROM participants").fetchone()[0]
         pid = f"P{count+1:03d}"
-        new_id = db.execute("""
+        db.execute("""
             INSERT INTO participants (participant_id, full_name, ndis_number, date_of_birth,
             plan_start, plan_end, support_type, primary_diagnosis, plan_manager, total_funding,
             core_funding, cb_funding, sc_funding, iscp_funding, support_coordinator,
             emergency_contact, emergency_phone, language, interpreter_required, status,
             sw_schedule, goals_summary, risk_flag, next_review_date, plan_status, notes)
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-            RETURNING id
         """, (pid, f['full_name'], f.get('ndis_number'), f.get('date_of_birth'),
               f.get('plan_start'), f.get('plan_end'), f.get('support_type'),
               f.get('primary_diagnosis'), f.get('plan_manager'),
@@ -179,7 +178,8 @@ def participant_new():
               f.get('emergency_contact'), f.get('emergency_phone'), f.get('language'),
               f.get('interpreter_required'), f.get('status','Active'), f.get('sw_schedule'),
               f.get('goals_summary'), f.get('risk_flag'), f.get('next_review_date'),
-              f.get('plan_status'), f.get('notes'))).fetchone()[0]
+              f.get('plan_status'), f.get('notes')))
+        new_id = db.execute("SELECT lastval()").fetchone()[0]
         db.commit()
         db.close()
         log('CREATE', 'participants', new_id, new={'name': f['full_name']})
@@ -274,15 +274,15 @@ def income_new():
     if request.method == 'POST':
         f = request.form
         db = get_db()
-        new_id = db.execute("""
+        db.execute("""
             INSERT INTO income_entries (entry_date, month_period, participant_id, participant_name,
             support_category, ndis_item_code, invoice_number, amount, plan_manager_type, notes, created_by)
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-            RETURNING id
         """, (f['entry_date'], f.get('month_period'), f.get('participant_id') or None,
               f.get('participant_name'), f.get('support_category'), f.get('ndis_item_code'),
               f.get('invoice_number'), float(f['amount'] or 0), f.get('plan_manager_type'),
-              f.get('notes'), session['user_id'])).fetchone()[0]
+              f.get('notes'), session['user_id']))
+        new_id = db.execute("SELECT lastval()").fetchone()[0]
         db.commit()
         db.close()
         log('CREATE', 'income_entries', new_id)
@@ -371,16 +371,16 @@ def expenditure_new():
     if request.method == 'POST':
         f = request.form
         db = get_db()
-        new_id = db.execute("""
+        db.execute("""
             INSERT INTO expenditure_entries (entry_date, month_period, category, sub_category,
             description, supplier, amount, participant_id, participant_name, invoice_number,
             payment_method, notes, created_by)
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-            RETURNING id
         """, (f['entry_date'], f.get('month_period'), f.get('category'), f.get('sub_category'),
               f.get('description'), f.get('supplier'), float(f['amount'] or 0),
               f.get('participant_id') or None, f.get('participant_name'),
-              f.get('invoice_number'), f.get('payment_method'), f.get('notes'), session['user_id'])).fetchone()[0]
+              f.get('invoice_number'), f.get('payment_method'), f.get('notes'), session['user_id']))
+        new_id = db.execute("SELECT lastval()").fetchone()[0]
         db.commit()
         db.close()
         log('CREATE', 'expenditure_entries', new_id)
@@ -479,16 +479,16 @@ def staff_cost_new():
         total_cost = actual_wage + super_amt
         margin = ndis_revenue - total_cost
         db = get_db()
-        new_id = db.execute("""
+        db.execute("""
             INSERT INTO staff_costs (pay_date, month_period, staff_name, role, participant_id,
             participant_name, shift_type, schedule_notes, qty_hours, ndis_rate, ndis_revenue,
             actual_rate, actual_wage, super_amount, total_cost, margin, created_by)
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-            RETURNING id
         """, (f['pay_date'], f.get('month_period'), f['staff_name'], f.get('role'),
               f.get('participant_id') or None, f.get('participant_name'), f.get('shift_type'),
               f.get('schedule_notes'), qty, ndis_rate, ndis_revenue, actual_rate,
-              actual_wage, super_amt, total_cost, margin, session['user_id'])).fetchone()[0]
+              actual_wage, super_amt, total_cost, margin, session['user_id']))
+        new_id = db.execute("SELECT lastval()").fetchone()[0]
         db.commit()
         db.close()
         log('CREATE', 'staff_costs', new_id)
@@ -582,13 +582,13 @@ def petty_cash_new():
             "SELECT COALESCE(SUM(cash_in),0) - COALESCE(SUM(expense),0) FROM petty_cash"
         ).fetchone()[0]
         balance = prev_bal + cash_in - expense
-        new_id = db.execute("""
+        db.execute("""
             INSERT INTO petty_cash (entry_date, description, expense, cash_in, balance,
             location, receipt_obtained, notes, created_by)
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
-            RETURNING id
         """, (f['entry_date'], f['description'], expense, cash_in, balance,
-              f.get('location'), f.get('receipt_obtained','No'), f.get('notes'), session['user_id'])).fetchone()[0]
+              f.get('location'), f.get('receipt_obtained','No'), f.get('notes'), session['user_id']))
+        new_id = db.execute("SELECT lastval()").fetchone()[0]
         db.commit()
         db.close()
         log('CREATE', 'petty_cash', new_id)
@@ -638,14 +638,14 @@ def task_new():
         db = get_db()
         count = db.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
         task_id = f"T{count+1:03d}"
-        new_id = db.execute("""
+        db.execute("""
             INSERT INTO tasks (task_id, title, priority, participant_id, participant_name,
             assigned_to, due_date, status, notes, created_by)
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-            RETURNING id
         """, (task_id, f['title'], f.get('priority'), f.get('participant_id') or None,
               f.get('participant_name'), f.get('assigned_to'), f.get('due_date'),
-              f.get('status','Not Started'), f.get('notes'), session['user_id'])).fetchone()[0]
+              f.get('status','Not Started'), f.get('notes'), session['user_id']))
+        new_id = db.execute("SELECT lastval()").fetchone()[0]
         db.commit()
         db.close()
         log('CREATE', 'tasks', new_id)
@@ -726,15 +726,15 @@ def communication_new():
     if request.method == 'POST':
         f = request.form
         db = get_db()
-        new_id = db.execute("""
+        db.execute("""
             INSERT INTO communications (comm_date, participant_id, participant_name, contact_type,
             person_assigned, organisation_role, reason, outcome, follow_up, follow_up_date, created_by)
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-            RETURNING id
         """, (f['comm_date'], f.get('participant_id') or None, f.get('participant_name'),
               f.get('contact_type'), f.get('person_assigned'), f.get('organisation_role'),
               f.get('reason'), f.get('outcome'), f.get('follow_up'), f.get('follow_up_date'),
-              session['user_id'])).fetchone()[0]
+              session['user_id']))
+        new_id = db.execute("SELECT lastval()").fetchone()[0]
         db.commit()
         db.close()
         log('CREATE', 'communications', new_id)
@@ -787,15 +787,15 @@ def issue_new():
         db = get_db()
         count = db.execute("SELECT COUNT(*) FROM issues").fetchone()[0]
         issue_id = f"I{count+1:03d}"
-        new_id = db.execute("""
+        db.execute("""
             INSERT INTO issues (issue_id, issue_date, participant_id, participant_name,
             description, risk_level, action_required, assigned_to, due_date, status, created_by)
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-            RETURNING id
         """, (issue_id, f['issue_date'], f.get('participant_id') or None,
               f.get('participant_name'), f['description'], f.get('risk_level'),
               f.get('action_required'), f.get('assigned_to'), f.get('due_date'),
-              f.get('status','Open'), session['user_id'])).fetchone()[0]
+              f.get('status','Open'), session['user_id']))
+        new_id = db.execute("SELECT lastval()").fetchone()[0]
         db.commit()
         db.close()
         log('CREATE', 'issues', new_id)
@@ -1469,7 +1469,7 @@ def petty_cash_recon():
     db = get_db()
     month = request.args.get('month', '')
     months = db.execute(
-        """SELECT DISTINCT TO_CHAR(entry_date::date, 'YYYY-MM') as m FROM petty_cash
+        """SELECT DISTINCT LEFT(entry_date, 7) as m FROM petty_cash
            WHERE entry_date IS NOT NULL ORDER BY m DESC"""
     ).fetchall()
 
@@ -1484,7 +1484,7 @@ def petty_cash_recon():
 
         entries = db.execute("""
             SELECT * FROM petty_cash
-            WHERE TO_CHAR(entry_date::date, 'YYYY-MM') = %s
+            WHERE LEFT(entry_date, 7) = %s
             ORDER BY entry_date, id
         """, (month,)).fetchall()
 
@@ -1543,7 +1543,7 @@ def petty_cash_recon_pdf():
     opening_balance = settings['opening_balance'] if settings else 0.0
 
     entries = db.execute("""
-        SELECT * FROM petty_cash WHERE TO_CHAR(entry_date::date, 'YYYY-MM') = %s
+        SELECT * FROM petty_cash WHERE LEFT(entry_date, 7) = %s
         ORDER BY entry_date, id
     """, (month,)).fetchall() if month else []
 
@@ -1646,7 +1646,7 @@ def petty_cash_recon_excel():
     opening_balance = settings['opening_balance'] if settings else 0.0
 
     entries = db.execute("""
-        SELECT * FROM petty_cash WHERE TO_CHAR(entry_date::date, 'YYYY-MM') = %s
+        SELECT * FROM petty_cash WHERE LEFT(entry_date, 7) = %s
         ORDER BY entry_date, id
     """, (month,)).fetchall() if month else []
     db.close()
