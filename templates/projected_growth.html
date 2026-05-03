@@ -1,0 +1,417 @@
+{% extends 'base.html' %}
+{% block title %}Projected Growth — MY DSP{% endblock %}
+{% block page_title %}Projected Growth{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start mb-4 gap-3">
+  <div>
+    <h4 class="mb-1"><i class="bi bi-graph-up-arrow me-2" style="color:var(--navy)"></i>Projected Growth</h4>
+    <p class="text-muted mb-0 small">12-month revenue forecast built from your actual operations data</p>
+  </div>
+  <div class="btn-group shadow-sm" role="group">
+    <button type="button" class="btn btn-primary px-4" id="btnOrganic" onclick="setMode('organic')">
+      <i class="bi bi-graph-up me-1"></i> No Marketing
+    </button>
+    <button type="button" class="btn btn-outline-success px-4" id="btnMarketing" onclick="setMode('marketing')">
+      <i class="bi bi-megaphone-fill me-1"></i> With Marketing
+    </button>
+  </div>
+</div>
+
+{% if avg_monthly_revenue == 0 %}
+<div class="alert alert-warning">
+  <i class="bi bi-exclamation-triangle-fill me-2"></i>
+  No income data found yet. Add income entries to generate projections.
+</div>
+{% else %}
+
+<!-- Marketing Budget Panel -->
+<div id="marketingPanel" class="card mb-4 border-success d-none" style="border-width:2px!important">
+  <div class="card-header py-2" style="background:rgba(25,135,84,0.08);border-bottom:1px solid rgba(25,135,84,0.2)">
+    <span class="fw-semibold text-success"><i class="bi bi-megaphone-fill me-2"></i>Monthly Marketing Budget</span>
+    <span class="text-muted small ms-2">— adjust spend per channel to see projected impact</span>
+  </div>
+  <div class="card-body py-3">
+    <div class="row g-3">
+      <div class="col-sm-6 col-lg-3">
+        <label class="form-label small fw-semibold mb-1">
+          <i class="bi bi-display me-1 text-primary"></i>Meta &amp; Google Ads
+        </label>
+        <div class="input-group input-group-sm">
+          <span class="input-group-text">$</span>
+          <input type="number" class="form-control" id="spend_meta" value="2000" min="0" step="100" oninput="updateChart()">
+          <span class="input-group-text">/mo</span>
+        </div>
+        <div class="text-muted mt-1" style="font-size:0.71rem"><i class="bi bi-clock me-1"></i>Results from month 2 · ~$1,500 per participant</div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <label class="form-label small fw-semibold mb-1">
+          <i class="bi bi-camera-reels me-1 text-danger"></i>Instagram &amp; TikTok
+        </label>
+        <div class="input-group input-group-sm">
+          <span class="input-group-text">$</span>
+          <input type="number" class="form-control" id="spend_social" value="1500" min="0" step="100" oninput="updateChart()">
+          <span class="input-group-text">/mo</span>
+        </div>
+        <div class="text-muted mt-1" style="font-size:0.71rem"><i class="bi bi-clock me-1"></i>Results from month 3 · ~$2,500 per participant</div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <label class="form-label small fw-semibold mb-1">
+          <i class="bi bi-search me-1 text-warning"></i>SEO
+        </label>
+        <div class="input-group input-group-sm">
+          <span class="input-group-text">$</span>
+          <input type="number" class="form-control" id="spend_seo" value="1000" min="0" step="100" oninput="updateChart()">
+          <span class="input-group-text">/mo</span>
+        </div>
+        <div class="text-muted mt-1" style="font-size:0.71rem"><i class="bi bi-clock me-1"></i>Results from month 6 · ~$2,000 per participant</div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <label class="form-label small fw-semibold mb-1">
+          <i class="bi bi-robot me-1 text-info"></i>AI Search (SGE / Perplexity)
+        </label>
+        <div class="input-group input-group-sm">
+          <span class="input-group-text">$</span>
+          <input type="number" class="form-control" id="spend_ai" value="500" min="0" step="100" oninput="updateChart()">
+          <span class="input-group-text">/mo</span>
+        </div>
+        <div class="text-muted mt-1" style="font-size:0.71rem"><i class="bi bi-clock me-1"></i>Results from month 4 · ~$1,800 per participant</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Chart Card -->
+<div class="card mb-4 shadow-sm">
+  <div class="card-body p-3">
+    <canvas id="growthChart" height="90"></canvas>
+  </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row g-3 mb-4" id="summaryCards"></div>
+
+<!-- Assumptions -->
+<div class="card border-0" style="background:#f8f9fa">
+  <div class="card-body py-2 px-3">
+    <small class="text-muted">
+      <i class="bi bi-info-circle me-1"></i>
+      <strong>Assumptions:</strong>
+      Organic growth ~6% p.a. (0.5%/month) based on NDIS sector benchmarks. Cost growth ~3.6% p.a.
+      Marketing projections use estimated cost-per-participant from NDIS industry data.
+      Current baseline: <strong>${{ '{:,.0f}'.format(avg_monthly_revenue) }}/month</strong> revenue ·
+      <strong>${{ '{:,.0f}'.format(avg_monthly_costs) }}/month</strong> costs ·
+      <strong>{{ participant_count }}</strong> active participants ·
+      <strong>${{ '{:,.0f}'.format(monthly_rev_per_participant) }}</strong> revenue per participant/month.
+      Projections are indicative only.
+    </small>
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const AVG_REVENUE  = {{ avg_monthly_revenue }};
+const AVG_COSTS    = {{ avg_monthly_costs }};
+const P_COUNT      = {{ participant_count }};
+const REV_PER_P    = {{ monthly_rev_per_participant }};
+const ACTUAL_DATA  = {{ actual_monthly | tojson }};
+
+let currentMode = 'organic';
+let chart = null;
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function fmtMoney(n) {
+  return '$' + Math.round(n).toLocaleString('en-AU');
+}
+
+function fmtMonth(ym) {
+  if (!ym) return '';
+  const [y, m] = ym.split('-');
+  const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return names[parseInt(m, 10) - 1] + " '" + y.slice(2);
+}
+
+function nextMonthLabels() {
+  const labels = [];
+  const now = new Date();
+  const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  for (let i = 1; i <= 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    labels.push(names[d.getMonth()] + " '" + String(d.getFullYear()).slice(2));
+  }
+  return labels;
+}
+
+function getSpends() {
+  return {
+    meta_google:       parseFloat(document.getElementById('spend_meta')?.value)   || 0,
+    instagram_tiktok:  parseFloat(document.getElementById('spend_social')?.value) || 0,
+    seo:               parseFloat(document.getElementById('spend_seo')?.value)    || 0,
+    ai_search:         parseFloat(document.getElementById('spend_ai')?.value)     || 0,
+  };
+}
+
+// ── Projection logic ─────────────────────────────────────────────────────────
+
+function projectOrganic() {
+  const revenues = [], costs = [], profits = [];
+  for (let m = 1; m <= 12; m++) {
+    const rev  = AVG_REVENUE * Math.pow(1.005, m);
+    const cost = AVG_COSTS   * Math.pow(1.003, m);
+    revenues.push(Math.round(rev));
+    costs.push(Math.round(cost));
+    profits.push(Math.round(rev - cost));
+  }
+  return { revenues, costs, profits };
+}
+
+function projectMarketing(spends) {
+  const revenues = [], costs = [], profits = [], extraArr = [];
+  const totalMonthlySpend = Object.values(spends).reduce((a, b) => a + b, 0);
+
+  for (let m = 1; m <= 12; m++) {
+    const organicRev  = AVG_REVENUE * Math.pow(1.005, m);
+    const organicCost = AVG_COSTS   * Math.pow(1.003, m);
+
+    let extra = 0;
+
+    // Meta/Google Ads: direct response, ramps up from month 2
+    if (m >= 2 && spends.meta_google > 0) {
+      extra += (spends.meta_google / 1500) * Math.min((m - 1) / 2, 1);
+    }
+    // Instagram/TikTok: brand awareness, cumulative from month 3
+    if (m >= 3 && spends.instagram_tiktok > 0) {
+      extra += (spends.instagram_tiktok / 2500) * ((m - 2) / 3);
+    }
+    // AI Search: from month 4
+    if (m >= 4 && spends.ai_search > 0) {
+      extra += (spends.ai_search / 1800) * Math.min((m - 3) / 2, 1);
+    }
+    // SEO: logarithmic growth from month 6
+    if (m >= 6 && spends.seo > 0) {
+      extra += (spends.seo / 2000) * Math.log(m - 4);
+    }
+
+    const addRev    = extra * REV_PER_P;
+    const totalRev  = organicRev + addRev;
+    const totalCost = organicCost + totalMonthlySpend;
+
+    revenues.push(Math.round(totalRev));
+    costs.push(Math.round(totalCost));
+    profits.push(Math.round(totalRev - totalCost));
+    extraArr.push(extra);
+  }
+  return { revenues, costs, profits, extraArr };
+}
+
+// ── Chart ─────────────────────────────────────────────────────────────────────
+
+function buildDatasets(mode) {
+  const actualLabels  = ACTUAL_DATA.map(d => fmtMonth(d.month_period));
+  const actualRevenue = ACTUAL_DATA.map(d => Math.round(d.total || 0));
+  const pad           = actualLabels.length;
+  const nullPad       = Array(pad).fill(null);
+
+  const actualPadded = [...actualRevenue, ...Array(12).fill(null)];
+
+  const datasets = [{
+    label: 'Actual Revenue',
+    data: actualPadded,
+    borderColor: '#6c757d',
+    backgroundColor: 'transparent',
+    borderDash: [6, 4],
+    borderWidth: 2,
+    pointRadius: 4,
+    tension: 0.3,
+  }];
+
+  if (mode === 'organic') {
+    const proj = projectOrganic();
+    datasets.push({
+      label: 'Projected Revenue',
+      data: [...nullPad, ...proj.revenues],
+      borderColor: '#1a3c5e',
+      backgroundColor: 'rgba(26,60,94,0.07)',
+      fill: true,
+      borderWidth: 2.5,
+      pointRadius: 3,
+      tension: 0.4,
+    });
+    datasets.push({
+      label: 'Projected Net Profit',
+      data: [...nullPad, ...proj.profits],
+      borderColor: '#198754',
+      backgroundColor: 'rgba(25,135,84,0.07)',
+      fill: true,
+      borderWidth: 2.5,
+      pointRadius: 3,
+      tension: 0.4,
+    });
+  } else {
+    const spends  = getSpends();
+    const organic  = projectOrganic();
+    const mkt      = projectMarketing(spends);
+
+    datasets.push({
+      label: 'Organic Only (no marketing)',
+      data: [...nullPad, ...organic.revenues],
+      borderColor: '#adb5bd',
+      borderDash: [5, 4],
+      backgroundColor: 'transparent',
+      fill: false,
+      borderWidth: 1.5,
+      pointRadius: 2,
+      tension: 0.4,
+    });
+    datasets.push({
+      label: 'Revenue with Marketing',
+      data: [...nullPad, ...mkt.revenues],
+      borderColor: '#0d6efd',
+      backgroundColor: 'rgba(13,110,253,0.07)',
+      fill: true,
+      borderWidth: 2.5,
+      pointRadius: 3,
+      tension: 0.4,
+    });
+    datasets.push({
+      label: 'Net Profit (after marketing spend)',
+      data: [...nullPad, ...mkt.profits],
+      borderColor: '#198754',
+      backgroundColor: 'rgba(25,135,84,0.07)',
+      fill: true,
+      borderWidth: 2.5,
+      pointRadius: 3,
+      tension: 0.4,
+    });
+  }
+
+  return datasets;
+}
+
+function updateChart() {
+  const actualLabels = ACTUAL_DATA.map(d => fmtMonth(d.month_period));
+  const allLabels    = [...actualLabels, ...nextMonthLabels()];
+  const datasets     = buildDatasets(currentMode);
+
+  if (chart) {
+    chart.data.labels   = allLabels;
+    chart.data.datasets = datasets;
+    chart.update('active');
+  } else {
+    const ctx = document.getElementById('growthChart').getContext('2d');
+    chart = new Chart(ctx, {
+      type: 'line',
+      data: { labels: allLabels, datasets },
+      options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top', labels: { usePointStyle: true, padding: 16, font: { size: 12 } } },
+          tooltip: {
+            callbacks: {
+              label: ctx => ctx.raw === null ? null : ' ' + ctx.dataset.label + ': ' + fmtMoney(ctx.raw),
+            }
+          }
+        },
+        scales: {
+          x: { grid: { color: 'rgba(0,0,0,0.04)' } },
+          y: {
+            grid: { color: 'rgba(0,0,0,0.04)' },
+            ticks: { callback: v => '$' + (v >= 1000 ? (v/1000).toFixed(0) + 'k' : v) }
+          }
+        }
+      }
+    });
+  }
+
+  currentMode === 'organic' ? updateSummaryOrganic() : updateSummaryMarketing();
+}
+
+// ── Summary cards ─────────────────────────────────────────────────────────────
+
+function card(title, value, sub, valueClass = '') {
+  return `<div class="card text-center border-0 shadow-sm h-100">
+    <div class="card-body py-3">
+      <div class="text-muted mb-1" style="font-size:0.78rem">${title}</div>
+      <div class="fw-bold fs-5 ${valueClass}">${value}</div>
+      <div class="text-muted mt-1" style="font-size:0.75rem">${sub}</div>
+    </div>
+  </div>`;
+}
+
+function updateSummaryOrganic() {
+  const proj       = projectOrganic();
+  const totalRev   = proj.revenues.reduce((a, b) => a + b, 0);
+  const totalProfit = proj.profits.reduce((a, b) => a + b, 0);
+  const month12Rev = proj.revenues[11];
+  const growthPct  = ((month12Rev - AVG_REVENUE) / AVG_REVENUE * 100).toFixed(1);
+
+  document.getElementById('summaryCards').innerHTML = `
+    <div class="col-6 col-md-3">${card('12-Month Revenue', fmtMoney(totalRev), 'Organic growth only', 'text-navy')}</div>
+    <div class="col-6 col-md-3">${card('12-Month Net Profit', fmtMoney(totalProfit), 'Before tax', 'text-success')}</div>
+    <div class="col-6 col-md-3">${card('Month 12 Monthly Revenue', fmtMoney(month12Rev), 'vs current ' + fmtMoney(AVG_REVENUE) + '/mo', 'text-primary')}</div>
+    <div class="col-6 col-md-3">${card('Revenue Growth (12 mo)', '+' + growthPct + '%', 'NDIS organic baseline ~6% p.a.', 'text-success')}</div>
+  `;
+}
+
+function updateSummaryMarketing() {
+  const spends      = getSpends();
+  const organic     = projectOrganic();
+  const mkt         = projectMarketing(spends);
+  const monthlySpend = Object.values(spends).reduce((a, b) => a + b, 0);
+  const totalSpend  = monthlySpend * 12;
+  const totalMktRev  = mkt.revenues.reduce((a, b) => a + b, 0);
+  const totalOrgRev  = organic.revenues.reduce((a, b) => a + b, 0);
+  const addRev      = totalMktRev - totalOrgRev;
+  const totalProfit  = mkt.profits.reduce((a, b) => a + b, 0);
+  const roi         = totalSpend > 0 ? ((addRev - totalSpend) / totalSpend * 100).toFixed(0) : 0;
+  const totalExtra  = mkt.extraArr.reduce((a, b) => a + b, 0);
+
+  // Break-even: first month cumulative additional revenue >= cumulative spend
+  let breakEven = null, cumAdd = 0, cumSpend = 0;
+  for (let i = 0; i < 12; i++) {
+    cumAdd   += mkt.revenues[i] - organic.revenues[i];
+    cumSpend += monthlySpend;
+    if (cumAdd >= cumSpend && breakEven === null) breakEven = i + 1;
+  }
+  const beText  = breakEven ? 'Month ' + breakEven : '> 12 months';
+  const beClass = breakEven ? (breakEven <= 6 ? 'text-success' : 'text-warning') : 'text-danger';
+  const roiClass = roi >= 0 ? 'text-success' : 'text-danger';
+
+  document.getElementById('summaryCards').innerHTML = `
+    <div class="col-6 col-lg-2">${card('12-Month Revenue', fmtMoney(totalMktRev), '+' + fmtMoney(addRev) + ' vs organic', 'text-primary')}</div>
+    <div class="col-6 col-lg-2">${card('12-Month Net Profit', fmtMoney(totalProfit), 'After all costs &amp; spend', totalProfit >= 0 ? 'text-success' : 'text-danger')}</div>
+    <div class="col-6 col-lg-2">${card('Total Marketing Spend', fmtMoney(totalSpend), fmtMoney(monthlySpend) + '/month', 'text-danger')}</div>
+    <div class="col-6 col-lg-2">${card('Marketing ROI', roi + '%', 'Additional revenue ÷ spend', roiClass)}</div>
+    <div class="col-6 col-lg-2">${card('Break-Even', beText, 'Marketing pays for itself', beClass)}</div>
+    <div class="col-6 col-lg-2">${card('Est. New Participants', totalExtra.toFixed(1), 'Gained over 12 months', 'text-primary')}</div>
+  `;
+}
+
+// ── Mode toggle ───────────────────────────────────────────────────────────────
+
+function setMode(m) {
+  currentMode = m;
+  const btnO = document.getElementById('btnOrganic');
+  const btnM = document.getElementById('btnMarketing');
+  const panel = document.getElementById('marketingPanel');
+
+  if (m === 'organic') {
+    btnO.className = 'btn btn-primary px-4';
+    btnM.className = 'btn btn-outline-success px-4';
+    panel.classList.add('d-none');
+  } else {
+    btnO.className = 'btn btn-outline-primary px-4';
+    btnM.className = 'btn btn-success px-4';
+    panel.classList.remove('d-none');
+  }
+  updateChart();
+}
+
+document.addEventListener('DOMContentLoaded', updateChart);
+</script>
+{% endblock %}

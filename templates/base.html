@@ -89,6 +89,11 @@
         <i class="bi bi-file-earmark-bar-graph-fill"></i> <span>Reports</span>
       </a>
     </li>
+    <li class="nav-item">
+      <a class="nav-link {% if request.endpoint == 'projected_growth' %}active{% endif %}" href="{{ url_for('projected_growth') }}">
+        <i class="bi bi-graph-up-arrow"></i> <span>Projected Growth</span>
+      </a>
+    </li>
 
     {% if session.role == 'admin' %}
     <div class="nav-section">ADMIN</div>

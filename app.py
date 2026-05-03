@@ -1753,6 +1753,71 @@ def petty_cash_recon_excel():
     return send_file(buf, as_attachment=True, download_name=fname,
                      mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
+@app.route('/projected-growth')
+@login_required
+def projected_growth():
+    db = get_db()
+
+    # Last 6 months of actual income by period
+    monthly_income = db.execute("""
+        SELECT month_period, SUM(amount) as total
+        FROM income_entries
+        WHERE month_period IS NOT NULL
+        GROUP BY month_period
+        ORDER BY month_period DESC
+        LIMIT 6
+    """).fetchall()
+
+    # Average monthly revenue
+    income_totals = [r['total'] or 0 for r in monthly_income]
+    avg_monthly_revenue = sum(income_totals) / max(len(income_totals), 1)
+
+    # Last 6 months expenditure and staff costs
+    monthly_exp = db.execute("""
+        SELECT month_period, SUM(amount) as total
+        FROM expenditure_entries
+        WHERE month_period IS NOT NULL
+        GROUP BY month_period
+        ORDER BY month_period DESC
+        LIMIT 6
+    """).fetchall()
+
+    monthly_staff = db.execute("""
+        SELECT month_period, SUM(total_cost) as total
+        FROM staff_costs
+        WHERE month_period IS NOT NULL
+        GROUP BY month_period
+        ORDER BY month_period DESC
+        LIMIT 6
+    """).fetchall()
+
+    exp_by_month = {r['month_period']: (r['total'] or 0) for r in monthly_exp}
+    staff_by_month = {r['month_period']: (r['total'] or 0) for r in monthly_staff}
+    all_periods = [r['month_period'] for r in monthly_income]
+    cost_totals = [(exp_by_month.get(m, 0) + staff_by_month.get(m, 0)) for m in all_periods]
+    avg_monthly_costs = sum(cost_totals) / max(len(cost_totals), 1)
+
+    # Participant count and monthly revenue per participant
+    participant_count = db.execute(
+        "SELECT COUNT(*) FROM participants WHERE status='Active'"
+    ).fetchone()[0]
+
+    monthly_rev_per_participant = avg_monthly_revenue / max(participant_count, 1)
+
+    db.close()
+
+    # Chronological order for chart baseline
+    actual_monthly = list(reversed([dict(r) for r in monthly_income]))
+
+    return render_template('projected_growth.html',
+        avg_monthly_revenue=round(avg_monthly_revenue, 2),
+        avg_monthly_costs=round(avg_monthly_costs, 2),
+        participant_count=participant_count,
+        monthly_rev_per_participant=round(monthly_rev_per_participant, 2),
+        actual_monthly=actual_monthly,
+    )
+
+
 @app.context_processor
 def inject_now():
     return {'now': datetime.now()}
