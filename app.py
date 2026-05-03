@@ -107,7 +107,7 @@ def dashboard():
     # Urgent tasks
     urgent_tasks = db.execute("""
         SELECT task_id, title, priority, assigned_to, due_date, status
-        FROM tasks WHERE status NOT IN ('Completed','Closed') AND priority LIKE '%URGENT%'
+        FROM tasks WHERE status NOT IN ('Completed','Closed') AND priority LIKE '%%URGENT%%'
         ORDER BY due_date LIMIT 5
     """).fetchall()
 
@@ -1305,7 +1305,7 @@ def api_alerts():
     # Staff cost margin warnings (negative margin)
     neg_margin = db.execute("""
         SELECT staff_name, SUM(margin) as total_margin, SUM(total_cost) as total_cost
-        FROM staff_costs GROUP BY staff_name HAVING total_margin < 0
+        FROM staff_costs GROUP BY staff_name HAVING SUM(margin) < 0
     """).fetchall()
     for s in neg_margin:
         alerts.append({'type': 'staff', 'level': 'warning',
