@@ -291,6 +291,15 @@ def init_db():
     for stmt in tables:
         cur.execute(stmt)
 
+    # Income breakdown columns (safe to run on existing tables)
+    for col in [
+        "ALTER TABLE income_entries ADD COLUMN IF NOT EXISTS amount_sil REAL DEFAULT 0",
+        "ALTER TABLE income_entries ADD COLUMN IF NOT EXISTS amount_is_support REAL DEFAULT 0",
+        "ALTER TABLE income_entries ADD COLUMN IF NOT EXISTS amount_allied_health REAL DEFAULT 0",
+        "ALTER TABLE income_entries ADD COLUMN IF NOT EXISTS amount_other REAL DEFAULT 0",
+    ]:
+        cur.execute(col)
+
     admin_hash = hashlib.sha256("Admin@123".encode()).hexdigest()
     cur.execute("""
         INSERT INTO users (username, password_hash, full_name, role)

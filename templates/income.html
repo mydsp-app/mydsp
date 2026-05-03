@@ -49,7 +49,16 @@
   <div class="table-responsive">
     <table class="table datatable">
       <thead>
-        <tr><th>Date</th><th>Month</th><th>Participant</th><th>Support Category</th><th>NDIS Code</th><th>Invoice No.</th><th>Amount</th><th>Plan Mgr</th><th>Notes</th><th>Actions</th></tr>
+        <tr>
+          <th>Date</th><th>Month</th><th>Participant</th><th>Support Category</th>
+          <th>NDIS Code</th><th>Invoice No.</th>
+          <th class="text-end">SIL</th>
+          <th class="text-end">IS Support</th>
+          <th class="text-end">Allied Health</th>
+          <th class="text-end">Other</th>
+          <th class="text-end">Total</th>
+          <th>Plan Mgr</th><th>Notes</th><th>Actions</th>
+        </tr>
       </thead>
       <tbody>
         {% for e in entries %}
@@ -60,9 +69,13 @@
           <td class="small">{{ e.support_category or '-' }}</td>
           <td><code class="small">{{ e.ndis_item_code or '-' }}</code></td>
           <td class="small">{{ e.invoice_number or '-' }}</td>
-          <td class="amount-positive fw-semibold">${{ '{:,.2f}'.format(e.amount) }}</td>
+          <td class="text-end small">${{ '{:,.2f}'.format(e.amount_sil or 0) }}</td>
+          <td class="text-end small">${{ '{:,.2f}'.format(e.amount_is_support or 0) }}</td>
+          <td class="text-end small">${{ '{:,.2f}'.format(e.amount_allied_health or 0) }}</td>
+          <td class="text-end small">${{ '{:,.2f}'.format(e.amount_other or 0) }}</td>
+          <td class="text-end amount-positive fw-semibold">${{ '{:,.2f}'.format(e.amount) }}</td>
           <td class="small">{{ e.plan_manager_type or '-' }}</td>
-          <td class="small text-muted" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ e.notes }}">{{ e.notes or '-' }}</td>
+          <td class="small text-muted" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ e.notes }}">{{ e.notes or '-' }}</td>
           <td>
             <a href="{{ url_for('income_edit', eid=e.id) }}" class="btn btn-xs btn-outline-primary me-1"><i class="bi bi-pencil"></i></a>
             <form method="POST" action="{{ url_for('income_delete', eid=e.id) }}" class="d-inline delete-form">
@@ -71,7 +84,7 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="10" class="text-center py-4 text-muted">No income entries found. <a href="{{ url_for('income_new') }}">Add one</a>.</td></tr>
+        <tr><td colspan="14" class="text-center py-4 text-muted">No income entries found. <a href="{{ url_for('income_new') }}">Add one</a>.</td></tr>
         {% endfor %}
       </tbody>
     </table>

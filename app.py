@@ -273,15 +273,22 @@ def income():
 def income_new():
     if request.method == 'POST':
         f = request.form
+        a_sil = float(f.get('amount_sil') or 0)
+        a_is  = float(f.get('amount_is_support') or 0)
+        a_ah  = float(f.get('amount_allied_health') or 0)
+        a_oth = float(f.get('amount_other') or 0)
+        total = a_sil + a_is + a_ah + a_oth
         db = get_db()
         db.execute("""
             INSERT INTO income_entries (entry_date, month_period, participant_id, participant_name,
-            support_category, ndis_item_code, invoice_number, amount, plan_manager_type, notes, created_by)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            support_category, ndis_item_code, invoice_number, amount,
+            amount_sil, amount_is_support, amount_allied_health, amount_other,
+            plan_manager_type, notes, created_by)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         """, (f['entry_date'], f.get('month_period'), f.get('participant_id') or None,
               f.get('participant_name'), f.get('support_category'), f.get('ndis_item_code'),
-              f.get('invoice_number'), float(f['amount'] or 0), f.get('plan_manager_type'),
-              f.get('notes'), session['user_id']))
+              f.get('invoice_number'), total, a_sil, a_is, a_ah, a_oth,
+              f.get('plan_manager_type'), f.get('notes'), session['user_id']))
         new_id = db.execute("SELECT lastval()").fetchone()[0]
         db.commit()
         db.close()
@@ -304,15 +311,21 @@ def income_edit(eid):
         return redirect(url_for('income'))
     if request.method == 'POST':
         f = request.form
+        a_sil = float(f.get('amount_sil') or 0)
+        a_is  = float(f.get('amount_is_support') or 0)
+        a_ah  = float(f.get('amount_allied_health') or 0)
+        a_oth = float(f.get('amount_other') or 0)
+        total = a_sil + a_is + a_ah + a_oth
         old = dict(entry)
         db.execute("""
             UPDATE income_entries SET entry_date=%s, month_period=%s, participant_id=%s,
             participant_name=%s, support_category=%s, ndis_item_code=%s, invoice_number=%s,
-            amount=%s, plan_manager_type=%s, notes=%s, updated_at=NOW() WHERE id=%s
+            amount=%s, amount_sil=%s, amount_is_support=%s, amount_allied_health=%s, amount_other=%s,
+            plan_manager_type=%s, notes=%s, updated_at=NOW() WHERE id=%s
         """, (f['entry_date'], f.get('month_period'), f.get('participant_id') or None,
               f.get('participant_name'), f.get('support_category'), f.get('ndis_item_code'),
-              f.get('invoice_number'), float(f['amount'] or 0), f.get('plan_manager_type'),
-              f.get('notes'), eid))
+              f.get('invoice_number'), total, a_sil, a_is, a_ah, a_oth,
+              f.get('plan_manager_type'), f.get('notes'), eid))
         db.commit()
         db.close()
         log('UPDATE', 'income_entries', eid, old)
@@ -928,9 +941,11 @@ def export_excel():
     ws1 = wb.active
     ws1.title = 'Income Ledger'
     hdrs = ['Date', 'Month', 'Participant', 'Support Category', 'NDIS Item Code',
-            'Invoice No.', 'Amount ($)', 'Plan Manager', 'Notes']
+            'Invoice No.', 'SIL ($)', 'IS Support ($)', 'Allied Health ($)', 'Other ($)', 'Total ($)', 'Plan Manager', 'Notes']
     style_header(ws1, hdrs)
-    q = "SELECT entry_date, month_period, participant_name, support_category, ndis_item_code, invoice_number, amount, plan_manager_type, notes FROM income_entries"
+    q = """SELECT entry_date, month_period, participant_name, support_category, ndis_item_code,
+           invoice_number, amount_sil, amount_is_support, amount_allied_health, amount_other,
+           amount, plan_manager_type, notes FROM income_entries"""
     params = []
     if month:
         q += " WHERE month_period=%s"

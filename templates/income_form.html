@@ -51,13 +51,52 @@
       <input type="text" name="invoice_number" class="form-control"
              value="{{ entry.invoice_number if entry else '' }}">
     </div>
-    <div class="col-md-4">
-      <label class="form-label">Amount ($) *</label>
-      <div class="input-group">
-        <span class="input-group-text">$</span>
-        <input type="number" name="amount" class="form-control" step="0.01" required
-               value="{{ entry.amount if entry else '' }}">
+    <div class="col-12">
+      <hr class="my-1">
+      <label class="form-label fw-semibold mb-2"><i class="bi bi-cash-stack me-1 text-success"></i>Amount Breakdown</label>
+      <div class="row g-2">
+        <div class="col-sm-6 col-lg-3">
+          <label class="form-label small mb-1">SIL ($)</label>
+          <div class="input-group input-group-sm">
+            <span class="input-group-text">$</span>
+            <input type="number" name="amount_sil" id="amount_sil" class="form-control amount-part"
+                   step="0.01" min="0" placeholder="0.00"
+                   value="{{ '%.2f'|format(entry.amount_sil or 0) if entry else '0.00' }}">
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <label class="form-label small mb-1">IS Support ($)</label>
+          <div class="input-group input-group-sm">
+            <span class="input-group-text">$</span>
+            <input type="number" name="amount_is_support" id="amount_is_support" class="form-control amount-part"
+                   step="0.01" min="0" placeholder="0.00"
+                   value="{{ '%.2f'|format(entry.amount_is_support or 0) if entry else '0.00' }}">
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <label class="form-label small mb-1">Allied Health ($)</label>
+          <div class="input-group input-group-sm">
+            <span class="input-group-text">$</span>
+            <input type="number" name="amount_allied_health" id="amount_allied_health" class="form-control amount-part"
+                   step="0.01" min="0" placeholder="0.00"
+                   value="{{ '%.2f'|format(entry.amount_allied_health or 0) if entry else '0.00' }}">
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <label class="form-label small mb-1">Other ($)</label>
+          <div class="input-group input-group-sm">
+            <span class="input-group-text">$</span>
+            <input type="number" name="amount_other" id="amount_other" class="form-control amount-part"
+                   step="0.01" min="0" placeholder="0.00"
+                   value="{{ '%.2f'|format(entry.amount_other or 0) if entry else '0.00' }}">
+          </div>
+        </div>
       </div>
+      <div class="mt-2 d-flex align-items-center gap-3">
+        <span class="text-muted small">Total:</span>
+        <span id="amount_total" class="fw-bold fs-5 text-success">$0.00</span>
+      </div>
+      <hr class="my-1">
     </div>
     <div class="col-md-4">
       <label class="form-label">Plan Manager Type</label>
@@ -79,4 +118,16 @@
     <a href="{{ url_for('income') }}" class="btn btn-outline-secondary">Cancel</a>
   </div>
 </form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function calcTotal() {
+  const ids = ['amount_sil','amount_is_support','amount_allied_health','amount_other'];
+  const total = ids.reduce((sum, id) => sum + (parseFloat(document.getElementById(id).value) || 0), 0);
+  document.getElementById('amount_total').textContent = '$' + total.toLocaleString('en-AU', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+document.querySelectorAll('.amount-part').forEach(el => el.addEventListener('input', calcTotal));
+document.addEventListener('DOMContentLoaded', calcTotal);
+</script>
 {% endblock %}
