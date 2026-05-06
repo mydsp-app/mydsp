@@ -24,7 +24,7 @@
       <select name="month" class="form-select" onchange="this.form.submit()">
         <option value="">-- Choose Month --</option>
         {% for m in months %}
-        <option value="{{ m.m }}" {{ 'selected' if month == m.m }}>{{ m.m }}</option>
+        <option value="{{ m.value }}" {{ 'selected' if month == m.value }}>{{ m.display }}</option>
         {% endfor %}
       </select>
     </div>

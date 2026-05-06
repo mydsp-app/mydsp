@@ -902,6 +902,16 @@ def reports():
         [month] if month else []
     ).fetchall()
 
+    months = db.execute(
+        """SELECT DISTINCT month_period FROM (
+               SELECT month_period FROM income_entries WHERE month_period IS NOT NULL AND month_period != ''
+               UNION
+               SELECT month_period FROM expenditure_entries WHERE month_period IS NOT NULL AND month_period != ''
+               UNION
+               SELECT month_period FROM staff_costs WHERE month_period IS NOT NULL AND month_period != ''
+           ) t ORDER BY month_period DESC"""
+    ).fetchall()
+
     db.close()
     return render_template('reports.html',
         income_by_participant=income_by_participant,
@@ -1522,18 +1532,65 @@ def budget_delete(bid):
 @app.route('/petty-cash/reconciliation')
 @login_required
 def petty_cash_recon():
+    from datetime import datetime as _dt
     db = get_db()
     month = request.args.get('month', '')
-    months = db.execute(
-        """SELECT DISTINCT LEFT(entry_date, 7) as m FROM petty_cash
-           WHERE entry_date IS NOT NULL ORDER BY m DESC"""
+
+    # Build months list: combine petty_cash entry dates + petty_cash_settings month_periods
+    raw_ym = db.execute(
+        """SELECT DISTINCT LEFT(entry_date, 7) as ym FROM petty_cash
+           WHERE entry_date IS NOT NULL AND entry_date != '' ORDER BY ym DESC"""
     ).fetchall()
+    settings_months = db.execute(
+        "SELECT DISTINCT month_period FROM petty_cash_settings WHERE month_period IS NOT NULL ORDER BY month_period DESC"
+    ).fetchall()
+
+    # Build a deduplicated ordered list of {value, display} dicts
+    seen = set()
+    months = []
+    # Convert YYYY-MM entries to display labels and their canonical YYYY-MM value
+    for r in raw_ym:
+        ym = (r['ym'] or '').strip()
+        if not ym or ym in seen:
+            continue
+        seen.add(ym)
+        try:
+            display = _dt.strptime(ym, '%Y-%m').strftime('%B %Y')
+        except Exception:
+            display = ym
+        months.append({'value': ym, 'display': display})
+
+    # Also include any months only in petty_cash_settings (may use "April 2026" format)
+    for r in settings_months:
+        mp = (r['month_period'] or '').strip()
+        if not mp:
+            continue
+        # Try to normalise to YYYY-MM for dedup
+        try:
+            ym = _dt.strptime(mp, '%B %Y').strftime('%Y-%m')
+        except Exception:
+            ym = mp
+        if ym not in seen:
+            seen.add(ym)
+            try:
+                display = _dt.strptime(ym, '%Y-%m').strftime('%B %Y')
+            except Exception:
+                display = mp
+            months.append({'value': ym, 'display': display})
+
+    months.sort(key=lambda x: x['value'], reverse=True)
 
     entries = []
     opening_balance = 0.0
     if month:
+        # Settings table may store "April 2026" — try both YYYY-MM and "Month YYYY" formats
+        try:
+            display_month = _dt.strptime(month, '%Y-%m').strftime('%B %Y')
+        except Exception:
+            display_month = month
         settings = db.execute(
-            "SELECT * FROM petty_cash_settings WHERE month_period=%s", (month,)
+            "SELECT * FROM petty_cash_settings WHERE month_period=%s OR month_period=%s",
+            (month, display_month)
         ).fetchone()
         if settings:
             opening_balance = settings['opening_balance'] or 0.0
