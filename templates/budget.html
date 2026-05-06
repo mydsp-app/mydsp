@@ -36,9 +36,12 @@
         <tr><th>Category</th><th class="text-end">Budget ($)</th><th class="text-end">Actual ($)</th><th class="text-end">Variance ($)</th><th class="text-end">Var %</th><th>Status</th></tr>
       </thead>
       <tbody>
-        <!-- Income -->
-        <tr>
-          <td class="fw-semibold"><i class="bi bi-arrow-down-circle-fill text-success me-1"></i>Income</td>
+        <!-- Income (expandable) -->
+        <tr class="table-clickable" style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#inc-{{ loop.index }}">
+          <td class="fw-semibold">
+            <i class="bi bi-arrow-down-circle-fill text-success me-1"></i>Income
+            <i class="bi bi-chevron-down ms-1 small text-muted"></i>
+          </td>
           <td class="text-end">${{ '{:,.2f}'.format(c.income_budget) }}</td>
           <td class="text-end amount-positive">${{ '{:,.2f}'.format(c.income_actual) }}</td>
           <td class="text-end {% if c.income_var >= 0 %}amount-positive{% else %}amount-negative{% endif %}">
@@ -54,9 +57,46 @@
             {% else %}<span class="badge bg-danger">Below Budget</span>{% endif %}
           </td>
         </tr>
-        <!-- Expenditure -->
-        <tr>
-          <td class="fw-semibold"><i class="bi bi-arrow-up-circle-fill text-danger me-1"></i>Expenditure</td>
+        <tr class="collapse" id="inc-{{ loop.index }}">
+          <td colspan="6" class="p-0">
+            <div class="bg-light border-start border-success border-3 px-3 py-2">
+              {% if c.income_breakdown %}
+              <table class="table table-sm table-borderless mb-0 small">
+                <thead class="text-muted">
+                  <tr>
+                    <th>Participant</th>
+                    <th class="text-end">SIL</th>
+                    <th class="text-end">IS Support</th>
+                    <th class="text-end">Allied Health</th>
+                    <th class="text-end">Other</th>
+                    <th class="text-end fw-semibold">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for r in c.income_breakdown %}
+                  <tr>
+                    <td class="fw-semibold">{{ r.name }}</td>
+                    <td class="text-end">${{ '{:,.2f}'.format(r.sil) }}</td>
+                    <td class="text-end">${{ '{:,.2f}'.format(r.is_support) }}</td>
+                    <td class="text-end">${{ '{:,.2f}'.format(r.allied_health) }}</td>
+                    <td class="text-end">${{ '{:,.2f}'.format(r.other) }}</td>
+                    <td class="text-end fw-semibold amount-positive">${{ '{:,.2f}'.format(r.total) }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              {% else %}
+              <p class="text-muted small mb-0 py-1">No income entries for this period.</p>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        <!-- Expenditure (expandable) -->
+        <tr class="table-clickable" style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#exp-{{ loop.index }}">
+          <td class="fw-semibold">
+            <i class="bi bi-arrow-up-circle-fill text-danger me-1"></i>Expenditure
+            <i class="bi bi-chevron-down ms-1 small text-muted"></i>
+          </td>
           <td class="text-end">${{ '{:,.2f}'.format(c.exp_budget) }}</td>
           <td class="text-end amount-negative">${{ '{:,.2f}'.format(c.exp_actual) }}</td>
           <td class="text-end {% if c.exp_var <= 0 %}amount-positive{% else %}amount-negative{% endif %}">
@@ -70,6 +110,51 @@
             {% elif c.exp_actual <= c.exp_budget %}<span class="badge bg-success">Under Budget</span>
             {% elif c.exp_actual <= c.exp_budget * 1.1 %}<span class="badge bg-warning text-dark">Near Limit</span>
             {% else %}<span class="badge bg-danger">Over Budget</span>{% endif %}
+          </td>
+        </tr>
+        <tr class="collapse" id="exp-{{ loop.index }}">
+          <td colspan="6" class="p-0">
+            <div class="bg-light border-start border-danger border-3 px-3 py-2">
+              {% if c.exp_breakdown.fixed or c.exp_breakdown.variable or c.exp_breakdown.other %}
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <div class="fw-semibold small text-muted mb-1">FIXED COSTS &mdash; ${{ '{:,.2f}'.format(c.exp_breakdown.fixed_total) }}</div>
+                  {% for r in c.exp_breakdown.fixed %}
+                  <div class="d-flex justify-content-between small py-0">
+                    <span>{{ r.label }}</span>
+                    <span class="text-end">${{ '{:,.2f}'.format(r.total) }}</span>
+                  </div>
+                  {% else %}
+                  <div class="small text-muted">None recorded</div>
+                  {% endfor %}
+                </div>
+                <div class="col-md-4">
+                  <div class="fw-semibold small text-muted mb-1">VARIABLE COSTS &mdash; ${{ '{:,.2f}'.format(c.exp_breakdown.variable_total) }}</div>
+                  {% for r in c.exp_breakdown.variable %}
+                  <div class="d-flex justify-content-between small py-0">
+                    <span>{{ r.label }}</span>
+                    <span class="text-end">${{ '{:,.2f}'.format(r.total) }}</span>
+                  </div>
+                  {% else %}
+                  <div class="small text-muted">None recorded</div>
+                  {% endfor %}
+                </div>
+                <div class="col-md-4">
+                  <div class="fw-semibold small text-muted mb-1">OTHER &mdash; ${{ '{:,.2f}'.format(c.exp_breakdown.other_total) }}</div>
+                  {% for r in c.exp_breakdown.other %}
+                  <div class="d-flex justify-content-between small py-0">
+                    <span>{{ r.label }}</span>
+                    <span class="text-end">${{ '{:,.2f}'.format(r.total) }}</span>
+                  </div>
+                  {% else %}
+                  <div class="small text-muted">None recorded</div>
+                  {% endfor %}
+                </div>
+              </div>
+              {% else %}
+              <p class="text-muted small mb-0 py-1">No expenditure entries for this period.</p>
+              {% endif %}
+            </div>
           </td>
         </tr>
         <!-- Staff Costs -->

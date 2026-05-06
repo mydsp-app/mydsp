@@ -1355,6 +1355,11 @@ def budget():
         "SELECT DISTINCT month_period FROM budgets ORDER BY month_period DESC LIMIT 3"
     ).fetchall()]
 
+    FIXED_KEYWORDS = ['rent','lease','insurance','utilities','utility','software','subscription',
+                      'phone','internet','equipment','asset','depreciation','accounting','legal','admin','office']
+    VARIABLE_KEYWORDS = ['transport','consumable','activity','activities','participant','meal',
+                         'food','community','travel','training','marketing','repair','maintenance']
+
     for period in periods:
         # Income
         income_budget = db.execute(
@@ -1378,14 +1383,50 @@ def budget():
             "SELECT COALESCE(SUM(total_cost),0) FROM staff_costs WHERE month_period=%s",
             (period,)).fetchone()[0]
 
+        # Income breakdown by participant
+        income_breakdown = db.execute(
+            """SELECT COALESCE(participant_name, 'Unknown') as name,
+                      COALESCE(SUM(amount_sil),0) as sil,
+                      COALESCE(SUM(amount_is_support),0) as is_support,
+                      COALESCE(SUM(amount_allied_health),0) as allied_health,
+                      COALESCE(SUM(amount_other),0) as other,
+                      COALESCE(SUM(amount),0) as total
+               FROM income_entries WHERE month_period=%s
+               GROUP BY participant_name ORDER BY total DESC""",
+            (period,)
+        ).fetchall()
+
+        # Expenditure breakdown by Fixed / Variable
+        exp_rows = db.execute(
+            """SELECT COALESCE(NULLIF(TRIM(COALESCE(sub_category,'')), ''), category, 'Uncategorised') as label,
+                      COALESCE(SUM(amount), 0) as total
+               FROM expenditure_entries WHERE month_period=%s
+               GROUP BY label ORDER BY total DESC""",
+            (period,)
+        ).fetchall()
+        exp_breakdown = {'fixed': [], 'variable': [], 'other': []}
+        for row in exp_rows:
+            lbl = (row['label'] or '').lower()
+            if any(k in lbl for k in FIXED_KEYWORDS):
+                exp_breakdown['fixed'].append({'label': row['label'], 'total': row['total']})
+            elif any(k in lbl for k in VARIABLE_KEYWORDS):
+                exp_breakdown['variable'].append({'label': row['label'], 'total': row['total']})
+            else:
+                exp_breakdown['other'].append({'label': row['label'], 'total': row['total']})
+        exp_breakdown['fixed_total'] = sum(r['total'] for r in exp_breakdown['fixed'])
+        exp_breakdown['variable_total'] = sum(r['total'] for r in exp_breakdown['variable'])
+        exp_breakdown['other_total'] = sum(r['total'] for r in exp_breakdown['other'])
+
         net_budget = income_budget - exp_budget - staff_budget
         net_actual = income_actual - exp_actual - staff_actual
         comparison.append({
             'period': period,
             'income_budget': income_budget, 'income_actual': income_actual,
             'income_var': income_actual - income_budget,
+            'income_breakdown': income_breakdown,
             'exp_budget': exp_budget, 'exp_actual': exp_actual,
             'exp_var': exp_actual - exp_budget,
+            'exp_breakdown': exp_breakdown,
             'staff_budget': staff_budget, 'staff_actual': staff_actual,
             'staff_var': staff_actual - staff_budget,
             'net_budget': net_budget, 'net_actual': net_actual,
