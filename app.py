@@ -1536,19 +1536,45 @@ def petty_cash_recon():
     db = get_db()
     month = request.args.get('month', '')
 
-    # Build months list: combine petty_cash entry dates + petty_cash_settings month_periods
-    raw_ym = db.execute(
-        """SELECT DISTINCT LEFT(entry_date, 7) as ym FROM petty_cash
-           WHERE entry_date IS NOT NULL AND entry_date != '' ORDER BY ym DESC"""
-    ).fetchall()
-    settings_months = db.execute(
-        "SELECT DISTINCT month_period FROM petty_cash_settings WHERE month_period IS NOT NULL ORDER BY month_period DESC"
+    # Collect all months across every financial table so any business month is selectable
+    # Sources using 'Month YYYY' text (income, expenditure, staff, settings)
+    text_months_raw = db.execute(
+        """SELECT DISTINCT month_period as mp FROM (
+               SELECT month_period FROM income_entries       WHERE month_period IS NOT NULL AND month_period != ''
+               UNION
+               SELECT month_period FROM expenditure_entries  WHERE month_period IS NOT NULL AND month_period != ''
+               UNION
+               SELECT month_period FROM staff_costs          WHERE month_period IS NOT NULL AND month_period != ''
+               UNION
+               SELECT month_period FROM petty_cash_settings  WHERE month_period IS NOT NULL AND month_period != ''
+           ) t"""
     ).fetchall()
 
-    # Build a deduplicated ordered list of {value, display} dicts
+    # Source using raw date strings: petty_cash.entry_date → LEFT gives YYYY-MM
+    raw_ym = db.execute(
+        """SELECT DISTINCT LEFT(entry_date, 7) as ym FROM petty_cash
+           WHERE entry_date IS NOT NULL AND entry_date != ''"""
+    ).fetchall()
+
     seen = set()
     months = []
-    # Convert YYYY-MM entries to display labels and their canonical YYYY-MM value
+
+    # Normalise 'Month YYYY' entries → YYYY-MM value, 'Month YYYY' display
+    for r in text_months_raw:
+        mp = (r['mp'] or '').strip()
+        if not mp:
+            continue
+        try:
+            ym = _dt.strptime(mp, '%B %Y').strftime('%Y-%m')
+            display = _dt.strptime(mp, '%B %Y').strftime('%B %Y')
+        except Exception:
+            ym = mp
+            display = mp
+        if ym not in seen:
+            seen.add(ym)
+            months.append({'value': ym, 'display': display})
+
+    # Add any petty_cash entry months not already covered
     for r in raw_ym:
         ym = (r['ym'] or '').strip()
         if not ym or ym in seen:
@@ -1559,24 +1585,6 @@ def petty_cash_recon():
         except Exception:
             display = ym
         months.append({'value': ym, 'display': display})
-
-    # Also include any months only in petty_cash_settings (may use "April 2026" format)
-    for r in settings_months:
-        mp = (r['month_period'] or '').strip()
-        if not mp:
-            continue
-        # Try to normalise to YYYY-MM for dedup
-        try:
-            ym = _dt.strptime(mp, '%B %Y').strftime('%Y-%m')
-        except Exception:
-            ym = mp
-        if ym not in seen:
-            seen.add(ym)
-            try:
-                display = _dt.strptime(ym, '%Y-%m').strftime('%B %Y')
-            except Exception:
-                display = mp
-            months.append({'value': ym, 'display': display})
 
     months.sort(key=lambda x: x['value'], reverse=True)
 
