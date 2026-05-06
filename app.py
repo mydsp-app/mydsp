@@ -1365,6 +1365,59 @@ def budget():
         "SELECT DISTINCT month_period FROM budgets ORDER BY month_period DESC LIMIT 3"
     ).fetchall()]
 
+    # ── Bank balance carry-forward chain ─────────────────────────────────────
+    # Collect every known month across all financial tables, sort chronologically
+    def _mp_sort_key(mp):
+        try: return datetime.strptime(mp, '%B %Y')
+        except: return datetime.min
+
+    _all_mp = db.execute("""
+        SELECT DISTINCT month_period FROM (
+            SELECT month_period FROM income_entries      WHERE month_period IS NOT NULL AND month_period != ''
+            UNION
+            SELECT month_period FROM expenditure_entries WHERE month_period IS NOT NULL AND month_period != ''
+            UNION
+            SELECT month_period FROM staff_costs         WHERE month_period IS NOT NULL AND month_period != ''
+            UNION
+            SELECT month_period FROM budgets             WHERE month_period IS NOT NULL AND month_period != ''
+        ) t
+    """).fetchall()
+    _all_months_sorted = sorted([r['month_period'] for r in _all_mp], key=_mp_sort_key)
+
+    # Manual opening balance overrides (seed values set by user)
+    _bb_overrides = {r['month_period']: (r['opening_balance'] or 0)
+        for r in db.execute(
+            "SELECT month_period, opening_balance FROM bank_balance_settings"
+        ).fetchall()}
+
+    # Batch-load net actuals for all months in 3 queries
+    _inc_map   = {r['month_period']: (r['total'] or 0) for r in db.execute(
+        "SELECT month_period, SUM(amount) as total FROM income_entries WHERE month_period IS NOT NULL GROUP BY month_period"
+    ).fetchall()}
+    _exp_map   = {r['month_period']: (r['total'] or 0) for r in db.execute(
+        "SELECT month_period, SUM(amount) as total FROM expenditure_entries WHERE month_period IS NOT NULL GROUP BY month_period"
+    ).fetchall()}
+    _staff_map = {r['month_period']: (r['total'] or 0) for r in db.execute(
+        "SELECT month_period, SUM(total_cost) as total FROM staff_costs WHERE month_period IS NOT NULL GROUP BY month_period"
+    ).fetchall()}
+
+    # Walk months in order, carrying the closing balance forward as the next opening
+    bank_chain = {}
+    _running = 0.0
+    for _mp in _all_months_sorted:
+        if _mp in _bb_overrides:          # manual seed/override for this month
+            _running = _bb_overrides[_mp]
+        _opening = _running
+        _net = (_inc_map.get(_mp, 0) - _exp_map.get(_mp, 0) - _staff_map.get(_mp, 0))
+        _closing = _opening + _net
+        bank_chain[_mp] = {
+            'opening':   _opening,
+            'closing':   _closing,
+            'is_manual': _mp in _bb_overrides,
+        }
+        _running = _closing
+    # ─────────────────────────────────────────────────────────────────────────
+
     FIXED_KEYWORDS = ['rent','lease','insurance','utilities','utility','software','subscription',
                       'phone','internet','equipment','asset','depreciation','accounting','legal','admin','office']
     VARIABLE_KEYWORDS = ['transport','consumable','activity','activities','participant','meal',
@@ -1429,8 +1482,12 @@ def budget():
 
         net_budget = income_budget - exp_budget - staff_budget
         net_actual = income_actual - exp_actual - staff_actual
+        _bb = bank_chain.get(period, {'opening': 0.0, 'closing': 0.0, 'is_manual': False})
         comparison.append({
             'period': period,
+            'opening_bank':    _bb['opening'],
+            'closing_bank':    _bb['closing'],
+            'bank_is_manual':  _bb['is_manual'],
             'income_budget': income_budget, 'income_actual': income_actual,
             'income_var': income_actual - income_budget,
             'income_breakdown': income_breakdown,
@@ -1526,6 +1583,28 @@ def budget_delete(bid):
     db.close()
     flash('Budget entry deleted.', 'success')
     return redirect(url_for('budget'))
+
+@app.route('/budget/bank-balance', methods=['POST'])
+@login_required
+def budget_bank_balance():
+    """Save a manual opening bank balance seed for a given month."""
+    f = request.form
+    mp  = f.get('month_period', '').strip()
+    bal = float(f.get('opening_balance') or 0)
+    if not mp:
+        flash('Month period is required.', 'danger')
+        return redirect(url_for('budget'))
+    db = get_db()
+    db.execute("""
+        INSERT INTO bank_balance_settings (month_period, opening_balance, notes)
+        VALUES (%s, %s, %s)
+        ON CONFLICT (month_period) DO UPDATE
+            SET opening_balance=%s, notes=%s, updated_at=NOW()
+    """, (mp, bal, f.get('notes', ''), bal, f.get('notes', '')))
+    db.commit()
+    db.close()
+    flash(f'Opening bank balance for {mp} set to ${bal:,.2f}.', 'success')
+    return redirect(url_for('budget') + ('?month=' + mp if mp else ''))
 
 # ─── Petty Cash Reconciliation ────────────────────────────────────────────────
 

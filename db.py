@@ -286,6 +286,13 @@ def init_db():
             notes TEXT,
             updated_at TIMESTAMP DEFAULT NOW()
         )""",
+        """CREATE TABLE IF NOT EXISTS bank_balance_settings (
+            id SERIAL PRIMARY KEY,
+            month_period TEXT UNIQUE NOT NULL,
+            opening_balance REAL DEFAULT 0,
+            notes TEXT,
+            updated_at TIMESTAMP DEFAULT NOW()
+        )""",
     ]
 
     for stmt in tables:
