@@ -1345,7 +1345,7 @@ def api_alerts():
 @login_required
 def budget():
     db = get_db()
-    month = request.args.get('month', '')
+    month = request.args.get('month', datetime.now().strftime('%B %Y'))
 
     q = "SELECT * FROM budgets WHERE 1=1"
     params = []
@@ -1355,9 +1355,17 @@ def budget():
     q += " ORDER BY month_period DESC, category, description"
     budget_rows = db.execute(q, params).fetchall()
 
-    months_list = db.execute(
-        "SELECT DISTINCT month_period FROM budgets ORDER BY month_period DESC"
-    ).fetchall()
+    months_list = db.execute("""
+        SELECT DISTINCT month_period FROM (
+            SELECT month_period FROM budgets             WHERE month_period IS NOT NULL AND month_period != ''
+            UNION
+            SELECT month_period FROM income_entries      WHERE month_period IS NOT NULL AND month_period != ''
+            UNION
+            SELECT month_period FROM expenditure_entries WHERE month_period IS NOT NULL AND month_period != ''
+            UNION
+            SELECT month_period FROM staff_costs         WHERE month_period IS NOT NULL AND month_period != ''
+        ) t ORDER BY month_period DESC
+    """).fetchall()
 
     # Build comparison: budget vs actual per category/month
     comparison = []
@@ -1384,11 +1392,18 @@ def budget():
     """).fetchall()
     _all_months_sorted = sorted([r['month_period'] for r in _all_mp], key=_mp_sort_key)
 
-    # Manual opening balance overrides (seed values set by user)
-    _bb_overrides = {r['month_period']: (r['opening_balance'] or 0)
-        for r in db.execute(
-            "SELECT month_period, opening_balance FROM bank_balance_settings"
-        ).fetchall()}
+    # Manual opening/closing overrides per month
+    _bb_overrides = {}
+    for r in db.execute(
+        "SELECT month_period, opening_balance, closing_balance FROM bank_balance_settings"
+    ).fetchall():
+        entry = {}
+        if r['opening_balance'] is not None:
+            entry['opening'] = r['opening_balance']
+        if r['closing_balance'] is not None:
+            entry['closing'] = r['closing_balance']
+        if entry:
+            _bb_overrides[r['month_period']] = entry
 
     # Batch-load net actuals for all months in 3 queries
     _inc_map   = {r['month_period']: (r['total'] or 0) for r in db.execute(
@@ -1401,19 +1416,26 @@ def budget():
         "SELECT month_period, SUM(total_cost) as total FROM staff_costs WHERE month_period IS NOT NULL GROUP BY month_period"
     ).fetchall()}
 
-    # Walk months in order, carrying the closing balance forward as the next opening
+    # Walk months in order, carrying closing forward as next opening
     bank_chain = {}
     _running = 0.0
     for _mp in _all_months_sorted:
-        if _mp in _bb_overrides:          # manual seed/override for this month
-            _running = _bb_overrides[_mp]
+        _ob = _bb_overrides.get(_mp, {})
+        if 'opening' in _ob:
+            _running = _ob['opening']
         _opening = _running
         _net = (_inc_map.get(_mp, 0) - _exp_map.get(_mp, 0) - _staff_map.get(_mp, 0))
-        _closing = _opening + _net
+        if 'closing' in _ob:
+            _closing = _ob['closing']
+            _closing_manual = True
+        else:
+            _closing = _opening + _net
+            _closing_manual = False
         bank_chain[_mp] = {
-            'opening':   _opening,
-            'closing':   _closing,
-            'is_manual': _mp in _bb_overrides,
+            'opening':          _opening,
+            'closing':          _closing,
+            'opening_is_manual': 'opening' in _ob,
+            'closing_is_manual': _closing_manual,
         }
         _running = _closing
     # ─────────────────────────────────────────────────────────────────────────
@@ -1482,12 +1504,13 @@ def budget():
 
         net_budget = income_budget - exp_budget - staff_budget
         net_actual = income_actual - exp_actual - staff_actual
-        _bb = bank_chain.get(period, {'opening': 0.0, 'closing': 0.0, 'is_manual': False})
+        _bb = bank_chain.get(period, {'opening': 0.0, 'closing': 0.0, 'opening_is_manual': False, 'closing_is_manual': False})
         comparison.append({
             'period': period,
-            'opening_bank':    _bb['opening'],
-            'closing_bank':    _bb['closing'],
-            'bank_is_manual':  _bb['is_manual'],
+            'opening_bank':         _bb['opening'],
+            'closing_bank':         _bb['closing'],
+            'opening_is_manual':    _bb['opening_is_manual'],
+            'closing_is_manual':    _bb['closing_is_manual'],
             'income_budget': income_budget, 'income_actual': income_actual,
             'income_var': income_actual - income_budget,
             'income_breakdown': income_breakdown,
@@ -1587,24 +1610,35 @@ def budget_delete(bid):
 @app.route('/budget/bank-balance', methods=['POST'])
 @login_required
 def budget_bank_balance():
-    """Save a manual opening bank balance seed for a given month."""
-    f = request.form
-    mp  = f.get('month_period', '').strip()
-    bal = float(f.get('opening_balance') or 0)
+    """Save a manual opening or closing bank balance for a given month."""
+    f     = request.form
+    mp    = f.get('month_period', '').strip()
+    field = f.get('field', 'opening')   # 'opening' or 'closing'
+    val   = float(f.get('value') or 0)
     if not mp:
         flash('Month period is required.', 'danger')
         return redirect(url_for('budget'))
     db = get_db()
+    # Ensure the row exists before updating
     db.execute("""
-        INSERT INTO bank_balance_settings (month_period, opening_balance, notes)
-        VALUES (%s, %s, %s)
-        ON CONFLICT (month_period) DO UPDATE
-            SET opening_balance=%s, notes=%s, updated_at=NOW()
-    """, (mp, bal, f.get('notes', ''), bal, f.get('notes', '')))
+        INSERT INTO bank_balance_settings (month_period)
+        VALUES (%s)
+        ON CONFLICT (month_period) DO NOTHING
+    """, (mp,))
+    if field == 'closing':
+        db.execute(
+            "UPDATE bank_balance_settings SET closing_balance=%s, updated_at=NOW() WHERE month_period=%s",
+            (val, mp))
+        label = 'Closing'
+    else:
+        db.execute(
+            "UPDATE bank_balance_settings SET opening_balance=%s, updated_at=NOW() WHERE month_period=%s",
+            (val, mp))
+        label = 'Opening'
     db.commit()
     db.close()
-    flash(f'Opening bank balance for {mp} set to ${bal:,.2f}.', 'success')
-    return redirect(url_for('budget') + ('?month=' + mp if mp else ''))
+    flash(f'{label} bank balance for {mp} set to ${val:,.2f}.', 'success')
+    return redirect(url_for('budget') + '?month=' + mp)
 
 # ─── Petty Cash Reconciliation ────────────────────────────────────────────────
 

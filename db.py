@@ -298,12 +298,13 @@ def init_db():
     for stmt in tables:
         cur.execute(stmt)
 
-    # Income breakdown columns (safe to run on existing tables)
+    # Safe column additions for existing tables
     for col in [
         "ALTER TABLE income_entries ADD COLUMN IF NOT EXISTS amount_sil REAL DEFAULT 0",
         "ALTER TABLE income_entries ADD COLUMN IF NOT EXISTS amount_is_support REAL DEFAULT 0",
         "ALTER TABLE income_entries ADD COLUMN IF NOT EXISTS amount_allied_health REAL DEFAULT 0",
         "ALTER TABLE income_entries ADD COLUMN IF NOT EXISTS amount_other REAL DEFAULT 0",
+        "ALTER TABLE bank_balance_settings ADD COLUMN IF NOT EXISTS closing_balance REAL DEFAULT NULL",
     ]:
         cur.execute(col)
 

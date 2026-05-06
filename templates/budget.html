@@ -13,13 +13,13 @@
     <div class="col-md-4">
       <label class="form-label small fw-semibold">Filter by Month</label>
       <select name="month" class="form-select form-select-sm">
-        <option value="">All / Recent Months</option>
-        {% for m in months_list %}<option value="{{ m.month_period }}" {{ 'selected' if filter_month == m.month_period }}>{{ m.month_period }}</option>{% endfor %}
+        {% for m in months_list %}
+        <option value="{{ m.month_period }}" {{ 'selected' if filter_month == m.month_period }}>{{ m.month_period }}</option>
+        {% endfor %}
       </select>
     </div>
     <div class="col-md-3 d-flex gap-2 align-items-end">
       <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Filter</button>
-      <a href="{{ url_for('budget') }}" class="btn btn-sm btn-outline-secondary">Clear</a>
     </div>
   </form>
 </div>
@@ -29,41 +29,6 @@
 <div class="table-card mb-4">
   <div class="card-header">
     <span><i class="bi bi-bar-chart-line me-2"></i>Budget vs Actual — {{ c.period }}</span>
-    <button class="btn btn-xs btn-outline-secondary" type="button"
-            data-bs-toggle="collapse" data-bs-target="#bb-form-{{ loop.index }}"
-            title="Set opening bank balance">
-      <i class="bi bi-pencil-square me-1"></i>Set Opening Balance
-    </button>
-  </div>
-  <!-- Opening balance seed form (collapsed by default) -->
-  <div class="collapse" id="bb-form-{{ loop.index }}">
-    <div class="px-3 py-2 border-bottom bg-light">
-      <form method="POST" action="{{ url_for('budget_bank_balance') }}" class="row g-2 align-items-end">
-        <input type="hidden" name="month_period" value="{{ c.period }}">
-        <div class="col-auto">
-          <label class="form-label small mb-1 fw-semibold">Opening Bank Balance for {{ c.period }} ($)</label>
-          <div class="input-group input-group-sm">
-            <span class="input-group-text">$</span>
-            <input type="number" name="opening_balance" class="form-control" step="0.01"
-                   value="{{ '%.2f'|format(c.opening_bank) }}" placeholder="0.00">
-          </div>
-        </div>
-        <div class="col-auto">
-          <button type="submit" class="btn btn-sm btn-primary">
-            <i class="bi bi-save me-1"></i>Save
-          </button>
-        </div>
-        <div class="col-12">
-          <small class="text-muted">
-            {% if c.bank_is_manual %}
-              <i class="bi bi-pin-fill text-warning me-1"></i>Manually set for this month. All subsequent months carry forward automatically.
-            {% else %}
-              <i class="bi bi-arrow-left-right text-info me-1"></i>Auto-carried from prior month. Override here to set a new seed for this month onwards.
-            {% endif %}
-          </small>
-        </div>
-      </form>
-    </div>
   </div>
   <div class="table-responsive">
     <table class="table table-sm mb-0">
@@ -71,21 +36,36 @@
         <tr><th>Category</th><th class="text-end">Budget ($)</th><th class="text-end">Actual ($)</th><th class="text-end">Variance ($)</th><th class="text-end">Var %</th><th>Status</th></tr>
       </thead>
       <tbody>
-        <!-- Opening Bank Balance -->
+        <!-- Opening Bank Balance (inline editable) -->
         <tr style="background:#dbeafe;">
           <td class="fw-semibold text-primary">
             <i class="bi bi-bank me-1"></i>Opening Bank Balance
-            {% if c.bank_is_manual %}
+            {% if c.opening_is_manual %}
               <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;">SET</span>
             {% else %}
               <span class="badge bg-info ms-1" style="font-size:0.65rem;">AUTO</span>
             {% endif %}
           </td>
           <td class="text-end text-muted">—</td>
-          <td class="text-end fw-bold text-primary">${{ '{:,.2f}'.format(c.opening_bank) }}</td>
+          <td class="text-end">
+            <form method="POST" action="{{ url_for('budget_bank_balance') }}"
+                  class="d-flex justify-content-end align-items-center gap-1 mb-0">
+              <input type="hidden" name="month_period" value="{{ c.period }}">
+              <input type="hidden" name="field" value="opening">
+              <div class="input-group input-group-sm" style="width:140px;">
+                <span class="input-group-text fw-bold text-primary">$</span>
+                <input type="number" name="value" step="0.01"
+                       class="form-control form-control-sm fw-bold text-primary text-end"
+                       value="{{ '%.2f'|format(c.opening_bank) }}">
+              </div>
+              <button type="submit" class="btn btn-primary btn-sm px-2" title="Save opening balance">
+                <i class="bi bi-check-lg"></i>
+              </button>
+            </form>
+          </td>
           <td class="text-end text-muted">—</td>
           <td class="text-end text-muted">—</td>
-          <td class="text-muted small">Carried forward</td>
+          <td class="small text-muted">{% if c.opening_is_manual %}Manually set{% else %}Carried forward{% endif %}</td>
         </tr>
         <!-- Income (expandable) -->
         <tr class="table-clickable" style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#inc-{{ loop.index }}">
@@ -240,17 +220,36 @@
             {% else %}<span class="badge bg-danger">Loss</span>{% endif %}
           </td>
         </tr>
-        <!-- Closing Bank Balance -->
+        <!-- Closing Bank Balance (inline editable) -->
         <tr style="background:#dcfce7;">
           <td class="fw-bold text-success">
             <i class="bi bi-bank2 me-1"></i>Closing Bank Balance
-            <span class="badge bg-success ms-1" style="font-size:0.65rem;">AUTO</span>
+            {% if c.closing_is_manual %}
+              <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;">SET</span>
+            {% else %}
+              <span class="badge bg-success ms-1" style="font-size:0.65rem;">AUTO</span>
+            {% endif %}
           </td>
           <td class="text-end text-muted">—</td>
-          <td class="text-end fw-bold {% if c.closing_bank >= 0 %}text-success{% else %}text-danger{% endif %}">
-            ${{ '{:,.2f}'.format(c.closing_bank) }}
+          <td class="text-end">
+            <form method="POST" action="{{ url_for('budget_bank_balance') }}"
+                  class="d-flex justify-content-end align-items-center gap-1 mb-0">
+              <input type="hidden" name="month_period" value="{{ c.period }}">
+              <input type="hidden" name="field" value="closing">
+              <div class="input-group input-group-sm" style="width:140px;">
+                <span class="input-group-text fw-bold text-success">$</span>
+                <input type="number" name="value" step="0.01"
+                       class="form-control form-control-sm fw-bold text-success text-end"
+                       value="{{ '%.2f'|format(c.closing_bank) }}">
+              </div>
+              <button type="submit" class="btn btn-success btn-sm px-2" title="Save closing balance">
+                <i class="bi bi-check-lg"></i>
+              </button>
+            </form>
           </td>
-          <td class="text-muted small text-end" colspan="2">Opening + Net Profit/(Loss)</td>
+          <td class="small text-muted text-end" colspan="2">
+            {% if c.closing_is_manual %}Manually set{% else %}Opening + Net Profit/(Loss){% endif %}
+          </td>
           <td>
             {% if c.closing_bank >= 0 %}<span class="badge bg-success">Positive</span>
             {% else %}<span class="badge bg-danger">Negative</span>{% endif %}
